@@ -123,18 +123,20 @@ def create_search_student_view(page: ft.Page):
         results_table.update()
 
     def update_attribute(name, value):
+        if(not value or len(value) == 0):
+            del search_attributes[name]
         search_attributes[name] = value
         search()
 
         
-    name_field = create_search_field("البحث باستخدام الرقم القومي", expand=True, update = update_attribute, name = "national_id")
-    national_id_field = create_search_field("البحث باستخدام الاسم", expand=True, update = update_attribute, name = "name")
+    national_id_field = create_search_field("البحث باستخدام الرقم القومي", expand=True, update = update_attribute, name = "national_id")
+    name_field = create_search_field("البحث باستخدام الاسم", expand=True, update = update_attribute, name = "name")
     
 
     search_field_row1 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
-        controls=[name_field, name_field]
+        controls=[name_field, national_id_field]
     )
     phone_field = create_search_field("البحث باستخدام رقم الهاتف", expand=True, update = update_attribute, name = "phone_number")
     serial_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "seq_num")
