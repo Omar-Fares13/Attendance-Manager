@@ -9,25 +9,25 @@ class Student(SQLModel, table=True):
     seq_number: int
     faculty_id: int
     is_male: bool = True
-    notes: str = ""
+    notes: Optional[str] = ""
     national_id: str
-    qr_received :bool = False
-    photo_path: Optional[str] = Field(default=None)
-    qrCode_path: str
-
+    qr_received: bool = False
+    photo_path: Optional[str] = None
+    qrCode_path: Optional[str] = None
 
     def to_json(self):
-        return {"id": self.id,
-                "name": self.name,
-                "faculty_id": self.faculty_id,
-                "seq_number": self.seq_number,
-                "is_male": self.is_male,
-                "notes": self.notes,
-                "photo": self.photo_path,
-                "qr_received" : self.qr_received,
-                "national_id": self.national_id,
-                "qrCode_path":self.qrCode_path
-                }
+        return {
+            "id": self.id,
+            "name": self.name,
+            "faculty_id": self.faculty_id,
+            "seq_number": self.seq_number,
+            "is_male": self.is_male,
+            "notes": self.notes,
+            "photo": self.photo_path,
+            "qr_received": self.qr_received,
+            "national_id": self.national_id,
+            "qrCode_path": self.qrCode_path
+        }
 
 
 
