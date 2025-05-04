@@ -47,3 +47,18 @@ def delete_student(student_id: int) -> bool:
         session.delete(student)
         session.commit()
         return True
+
+
+#Search by seq
+
+def get_student_by_seq_number(seq_number: int) -> Optional[Student]:
+    with next(get_session()) as session:
+        statement = select(Student).where(Student.seq_number == seq_number)
+        return session.exec(statement).first()
+
+#Search by name
+
+def search_students_by_name(name_query: str) -> List[Student]:
+    with next(get_session()) as session:
+        statement = select(Student).where(Student.name.ilike(f"%{name_query}%"))
+        return session.exec(statement).all()
