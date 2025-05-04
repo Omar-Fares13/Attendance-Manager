@@ -12,5 +12,4 @@ venv/
 Thumbs.db
 
 # others
-backend/attendance.db
 backend/test.py
