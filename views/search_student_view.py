@@ -2,11 +2,16 @@
 import flet as ft
 from components.banner import create_banner
 from utils.assets import ft_asset # Only needed if using specific assets later
+from models import Student, Faculty
+from logic.students import get_students
+search_attributes = {}
+
 
 # --- Helper Function for Search TextFields ---
-def create_search_field(label: str, width: float = None, expand: bool = False):
+def create_search_field(label: str, width: float = None, expand: bool = False, name :str = "", update = None):
     """Creates a styled TextField for search criteria."""
     return ft.TextField(
+        data = name,
         label=label,
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
@@ -18,7 +23,8 @@ def create_search_field(label: str, width: float = None, expand: bool = False):
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
         height=45, # Control height
         width=width,
-        expand=expand
+        expand=expand,
+        on_change = lambda e : update(e.control.data, e.control.value)
     )
 
 # --- Helper for Table Header Cell ---
@@ -86,25 +92,67 @@ def create_search_student_view(page: ft.Page):
     )
 
     # --- Search Fields Definition ---
+    def search():
+        students: List[Student] = get_students(search_attributes)
+        rows: List[ft.DataRow] = []   
+        for stu in students:
+            # action button for this student
+            update_button = ft.ElevatedButton(
+                text="X",
+                bgcolor=ft.colors.RED_700,
+                color=ft.colors.WHITE,
+                width=40, height=35,
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
+                tooltip=f"Action for {stu.name}",
+                on_click=lambda e, sid=stu.id: handle_action(sid)
+            )
+
+            # assemble all the cells
+            cells = [
+                create_data_cell(update_button),
+                create_data_cell(ft.Text(stu.name)),
+                create_data_cell(ft.Text(stu.national_id)),
+                create_data_cell(ft.Text(stu.suq_number)),
+                create_data_cell(ft.Text(stu.faculty.name if stu.faculty else "-")),
+                create_data_cell(ft.Text(stu.phone_numer)),
+                create_data_cell(ft.Text(stu.qr_code)),
+            ]
+            rows.append(ft.DataRow(cells=cells))
+
+        results_table.rows = rows
+        results_table.update()
+
+    def update_attribute(name, value):
+        search_attributes[name] = value
+        search()
+
+        
+    name_field = create_search_field("البحث باستخدام الرقم القومي", expand=True, update = update_attribute, name = "national_id")
+    national_id_field = create_search_field("البحث باستخدام الاسم", expand=True, update = update_attribute, name = "name")
+    
+
     search_field_row1 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
-        controls=[
-            create_search_field("البحث باستخدام الرقم القومي", expand=True),
-            create_search_field("البحث باستخدام الاسم", expand=True),
-        ]
+        controls=[name_field, name_field]
     )
+    phone_field = create_search_field("البحث باستخدام رقم الهاتف", expand=True, update = update_attribute, name = "phone_number")
+    serial_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "seq_num")
+    faculty_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "facutly")
+    
     search_field_row2 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
-        controls=[
-             create_search_field("البحث باستخدام رقم الهاتف", expand=True),
-             create_search_field("البحث باستخدام رقم المسلسل", width=200), # Example fixed width
-             create_search_field("الكلية", width=200), # Example fixed width
-        ]
+        controls=[phone_field, serial_field, faculty_field]
+    )
+    qr_field = create_search_field("بحث باستخدام الكيو أر", expand = True, update = update_attribute, name = "qr_code")
+    search_field_row3 = ft.Row(
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=20,
+        controls=[qr_field]
     )
     search_fields_container = ft.Column(
-        controls=[search_field_row1, ft.Container(height=10), search_field_row2],
+        controls=[search_field_row1, ft.Container(height=10), search_field_row2, search_field_row3],
         spacing=0 # Let Rows handle internal spacing
     )
 
@@ -169,36 +217,9 @@ def create_search_student_view(page: ft.Page):
         create_header_cell("م."),         # Misc/Notes
     ]
 
+
     # Placeholder Data Rows (Replace with dynamic data later)
     rows = []
-    for i in range(5): # Example: 5 rows
-        rows.append(
-            ft.DataRow(
-                cells=[
-                    # Action Button Cell
-                    create_data_cell(
-                        ft.ElevatedButton(
-                            text="X", # Or use an icon: icon=ft.icons.EDIT
-                            bgcolor=ft.colors.RED_700, # Red for delete/action
-                            color=ft.colors.WHITE,
-                            width=40, height=35,
-                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
-                            tooltip=f"Action for row {i+1}"
-                            # Add on_click here for row-specific actions later
-                        )
-                    ),
-                    # Data cells - text color/alignment handled by create_data_cell
-                    create_data_cell(ft.Text(f"اسم الطالب {i+1}")),
-                    create_data_cell(ft.Text(f"123456789012{i:02d}")),
-                    create_data_cell(ft.Text(f"S{i+1:03d}")),
-                    create_data_cell(ft.Text(f"كلية الهندسة")),
-                    create_data_cell(ft.Text(f"0101234567{i}")),
-                    create_data_cell(ft.Text(f"-")),
-                ]
-            )
-        )
-
-    # Create the DataTable widget
     results_table = ft.DataTable(
         columns=columns,
         rows=rows,
@@ -209,6 +230,9 @@ def create_search_student_view(page: ft.Page):
         column_spacing=10, # Adjust spacing
         expand=True # Make table fill horizontal space
     )
+    
+    # Create the DataTable widget
+    
 
     # --- Get Banner ---
     banner_control = create_banner(page.width)
@@ -244,7 +268,6 @@ def create_search_student_view(page: ft.Page):
         scroll=ft.ScrollMode.ADAPTIVE, # Enable scrolling for the whole content column
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH # Stretch children horizontally
     )
-
     # --- View Definition ---
     return ft.View(
         route="/search_student", # Route for this view
