@@ -85,7 +85,7 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 
     if "phone_number" in search_attributes:
         q = search_attributes["phone_number"]
-        stmt = stmt.where(Student.phone_numer.ilike(f"%{q}%"))
+        stmt = stmt.where(Student.phone_number.ilike(f"%{q}%"))
 
     if "seq_num" in search_attributes:
         q = search_attributes["seq_num"]
