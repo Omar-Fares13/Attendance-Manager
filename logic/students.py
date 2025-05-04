@@ -1,7 +1,7 @@
 # student_crud.py
 from sqlmodel import Session, select
 from typing import List, Optional
-from models import Student
+from models import Student,Faculty
 from db import get_session
 
 # Create
@@ -68,11 +68,7 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     Supported keys: name, national_id, phone_number, seq_num, faculty, qr_code
     """
     # start a fresh statement
-    stmt = select(Student)
-
-    # only join Faculty if we need to filter by it
-    if "faculty" in search_attributes:
-        stmt = stmt.join(Faculty)
+    stmt = select(Student).join(Faculty)
 
     # apply filters in the order you like
     if "name" in search_attributes:
