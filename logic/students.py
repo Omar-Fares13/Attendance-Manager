@@ -5,25 +5,24 @@ from models import Student, Faculty, StudentCourse
 from db import get_session
 from sqlalchemy.orm import selectinload
 from DTOs.StudentCreateDTO import StudentCreateDTO
+import uuid
 # Create
 def create_student(stu : StudentCreateDTO) -> Student:
-    student = Student(
+    with next(get_session()) as session:
+        stmt = select(Student.seq_number).where(Student.faculty_id == stu.faculty_id).order_by(Student.seq_number.desc()).limit(1)
+        seq = session.exec(stmt).one_or_none()
+        student = Student(
             name = stu.name,
             phone_number = stu.phone_number,
             is_male = stu.is_male,
-            faculty = stu.faculty_id,
+            faculty_id = stu.faculty_id,
             national_id = stu.national_id,
             qr_code = str(uuid.uuid4()),
-
-    )
-    with next(get_session()) as session:
+            seq_number = int(seq) + 1 if seq else 1
+            )    
         session.add(student)
         session.commit()
         session.refresh(student)
-        stmt = select(Course.id).order_by(Course.end_date.desc()).limit(1)
-        course = Session.exec(stmt).one_or_none()
-        if course : 
-            student_course = StudentCourse(student_id = student.id) 
         return student
 
 # Read all
