@@ -148,17 +148,7 @@ def create_qr_display_view(page: ft.Page):
     # --- Navigation Function ---
     def go_back(e):
         """Handles navigating back using either the top or bottom back buttons."""
-        if len(page.views) > 1:
-            page.views.pop() # Remove the current view (/qr_display)
-            top_view = page.views[-1] # Get the previous view (e.g., /camera_qr)
-            page.go(top_view.route) # Navigate to it
-            print(f"Navigating back to: {top_view.route}")
-        else:
-            # Sensible fallback if this view was accessed directly
-            fallback_route = "/register_course_options"
-            page.go(fallback_route)
-            print(f"No previous view found, navigating back to fallback: {fallback_route}")
-
+        page.go("camera_qr")
     # --- Top-Left Back Button ---
     back_button_page = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # Icon points left in RTL mode
