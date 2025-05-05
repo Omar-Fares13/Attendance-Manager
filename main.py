@@ -119,8 +119,8 @@ def main(page: ft.Page):
 
 
         # Colleges
-        elif actual_route == '/manage_colleges':
-            page.view.append(create_manage_colleges_view(page))
+        elif actual_route == '/colleges':
+            page.views.append(create_manage_colleges_view(page))
 
         # Course Management
         elif actual_route == "/manage_course":

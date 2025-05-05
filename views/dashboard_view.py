@@ -29,7 +29,8 @@ def create_dashboard_card(page: ft.Page, icon_src: str, text: str, action_data: 
         elif action == "reports":  # <<< ADD THIS CONDITION
             page.go("/report_course") # <<< Navigate to the course report page
         # Add elif for "colleges" later if needed
-        # elif action == "colleges": page.go("/colleges")
+        elif action == "colleges": 
+            page.go("/colleges")
         else:
             # Default behavior: show a snackbar
             page.show_snack_bar(ft.SnackBar(ft.Text(f"تم النقر على: {text} (No Action Yet)"), open=True))
