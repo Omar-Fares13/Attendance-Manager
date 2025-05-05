@@ -18,6 +18,7 @@ from views.camera_qr_view import create_camera_qr_view
 from views.qr_display_view import create_qr_display_view
 from views.report_course_view import create_report_course_view
 from views.main_screen_view import create_main_screen_view
+from views.manage_colleges_view import create_manage_colleges_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -115,6 +116,11 @@ def main(page: ft.Page):
         # Dashboard
         elif actual_route == "/dashboard":
             page.views.append(create_dashboard_view(page))
+
+
+        # Colleges
+        elif actual_route == '/manage_colleges':
+            page.view.append(create_manage_colleges_view(page))
 
         # Course Management
         elif actual_route == "/manage_course":
