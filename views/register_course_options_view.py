@@ -78,9 +78,7 @@ def create_register_course_options_view(page: ft.Page):
     # --- Controls ---
     # Back button navigation
     def go_back(e):
-        page.views.pop()
-        top_view = page.views[-1]
-        page.go(top_view.route) # Go back to gender selection view
+        page.go("/register_course") # Go back to gender selection view
 
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # RTL back arrow

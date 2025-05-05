@@ -1,12 +1,12 @@
 # faculty_crud.py
-
 from sqlmodel import Session, select
 from typing import List, Optional
 from models import Faculty
 from db import get_session
 
 # Create faculty
-def create_faculty(faculty: Faculty) -> Faculty:
+def create_faculty(name : str) -> Faculty:
+    faculty = Faculty(name = name)
     with next(get_session()) as session:
         session.add(faculty)
         session.commit()

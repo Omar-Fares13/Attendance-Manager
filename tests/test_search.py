@@ -1,3 +1,6 @@
 from logic.students import get_students
 
-print(get_students({"name" : "ali"}))
+students = get_students({"name" : "ali"}) 
+print(students)
+for s in students:
+    print(s.faculty.name)

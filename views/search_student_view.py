@@ -3,7 +3,7 @@ import flet as ft
 from components.banner import create_banner
 from utils.assets import ft_asset # Only needed if using specific assets later
 from models import Student, Faculty
-from logic.students import get_students
+from logic.students import get_students, get_student_by_id
 search_attributes = {}
 
 
@@ -71,9 +71,7 @@ def create_search_student_view(page: ft.Page):
     # --- Controls ---
     # Back button navigation
     def go_back(e):
-        page.views.pop()
-        top_view = page.views[-1]
-        page.go(top_view.route)
+        page.go("/manage_students")
 
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # Looks like back arrow in RTL
@@ -98,13 +96,14 @@ def create_search_student_view(page: ft.Page):
         for stu in students:
             # action button for this student
             update_button = ft.ElevatedButton(
-                text="X",
-                bgcolor=ft.colors.RED_700,
-                color=ft.colors.WHITE,
+                data = stu.id,
+                text="تعديل",
+                bgcolor=ft.colors.ORANGE,
+                color=ft.colors.BLACK,
                 width=40, height=35,
                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
                 tooltip=f"Action for {stu.name}",
-                on_click=lambda e, sid=stu.id: handle_action(sid)
+                on_click = lambda e : edit_data_click(e.control.data)
             )
 
             # assemble all the cells
@@ -112,9 +111,9 @@ def create_search_student_view(page: ft.Page):
                 create_data_cell(update_button),
                 create_data_cell(ft.Text(stu.name)),
                 create_data_cell(ft.Text(stu.national_id)),
-                create_data_cell(ft.Text(stu.suq_number)),
+                create_data_cell(ft.Text(stu.seq_number)),
                 create_data_cell(ft.Text(stu.faculty.name if stu.faculty else "-")),
-                create_data_cell(ft.Text(stu.phone_numer)),
+                create_data_cell(ft.Text(stu.phone_number)),
                 create_data_cell(ft.Text(stu.qr_code)),
             ]
             rows.append(ft.DataRow(cells=cells))
@@ -123,9 +122,10 @@ def create_search_student_view(page: ft.Page):
         results_table.update()
 
     def update_attribute(name, value):
-        if(not value or len(value) == 0):
-            del search_attributes[name]
-        search_attributes[name] = value
+        if not value:
+            search_attributes.pop(name, None)
+        else:
+            search_attributes[name] = value
         search()
 
         
@@ -140,7 +140,7 @@ def create_search_student_view(page: ft.Page):
     )
     phone_field = create_search_field("البحث باستخدام رقم الهاتف", expand=True, update = update_attribute, name = "phone_number")
     serial_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "seq_num")
-    faculty_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "facutly")
+    faculty_field = create_search_field("البحث باستخدام الكلية", width=200, update = update_attribute, name = "faculty")
     
     search_field_row2 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
@@ -170,11 +170,11 @@ def create_search_student_view(page: ft.Page):
         page.show_snack_bar(ft.SnackBar(ft.Text("فتح نافذة إضافة ملف..."), open=True))
         # Example: Implement file picker logic here
 
-    def edit_data_click(e):
+    def edit_data_click(student_id : int = 1):
         # This button navigates to the edit page
         print("Edit Student Data Clicked - Navigating to Edit Page")
         # In a real app, consider passing student ID: page.go(f"/edit_student/{student_id}")
-        page.go("/edit_student") # Navigate to the edit student view route
+        page.go(f"/login/edit_student?student_id={student_id}") # Navigate to the edit student view route
 
     # Button Styling
     button_style = ft.ButtonStyle( shape=ft.RoundedRectangleBorder(radius=8) )
@@ -189,14 +189,9 @@ def create_search_student_view(page: ft.Page):
         text="اضافه ملف طلبه", icon=ft.icons.UPLOAD_FILE, bgcolor="#6FA03C", color=ft.Colors.WHITE,
         height=button_height, style=button_style, on_click=add_file_click, tooltip="إضافة مجموعة طلاب من ملف (Excel, CSV)"
     )
-    edit_data_btn = ft.ElevatedButton(
-        text="تعديل بيانات طالب", icon=ft.icons.EDIT_NOTE, bgcolor="#B58B18", color=ft.Colors.WHITE,
-        height=button_height, style=button_style, on_click=edit_data_click, tooltip="فتح صفحة تعديل بيانات طالب"
-    )
-
     # Layout for Action Buttons
     action_buttons_row = ft.Row(
-        [add_student_btn, add_file_btn, edit_data_btn],
+        [add_student_btn, add_file_btn],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
         wrap=True, # Allow wrapping on small screens

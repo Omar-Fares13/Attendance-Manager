@@ -2,11 +2,23 @@
 import flet as ft
 from components.banner import create_banner
 from utils.assets import ft_asset # Not strictly needed here, but good practice
+from logic.students import get_student_by_id, update_student
+from logic.faculties import get_all_faculties
+edit_attributes = {}
+faculty_lookup = {}
+
+def update_field(name : str, value : str):
+    if not value:
+        edit_attributes.pop(name, None)
+    else:
+        edit_attributes[name] = value
 
 # --- Helper Function for Form TextFields ---
-def create_form_field(label: str):
+def create_form_field(label: str, name : str, value : str):
     """Creates a styled TextField for the edit form."""
     return ft.TextField(
+        data = name,
+        value = value,
         label=label,
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
@@ -15,19 +27,19 @@ def create_form_field(label: str):
         bgcolor=ft.Colors.WHITE, # White background
         border_radius=8,
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
-        height=45, # Consistent height
-        # Expand is handled by column/row layout
+        height=45, 
+        on_change = lambda e : update_field(e.control.data, value = e.control.value)
     )
 
 # --- Main View Creation Function ---
 def create_edit_student_view(page: ft.Page):
     """Creates the Flet View for the Edit Student Data screen."""
-
+    faculties = get_all_faculties()
+    for fac in faculties:
+        faculty_lookup[fac.id] = fac.name
     # --- Controls ---
     def go_back(e):
-        page.views.pop()
-        top_view = page.views[-1]
-        page.go(top_view.route)
+        page.go("/search_student")
 
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color="#B58B18",
@@ -38,28 +50,56 @@ def create_edit_student_view(page: ft.Page):
         "تعديل بيانات الطالب", # Edit Student Data
         size=32, weight=ft.FontWeight.BOLD, color="#B58B18"
     )
-
+    student_id_str = page.route.split("=")[-1]
+    student_id = int(student_id_str) if student_id_str is not None else None
+    edit_attributes["id"] = student_id
+    student = get_student_by_id(student_id)
     # --- Form Fields ---
-    # Define fields (later you'll populate these with actual student data)
-    name_field = create_form_field("الاسم")
-    department_field = create_form_field("القسم")
-    national_id_field = create_form_field("الرقم القومي")
+    # --- inside create_edit_student_view, right after you fetch `student` ---
+    name_field = create_form_field(
+        label="الاسم",
+        name="name",
+        value=student.name
+    )
+    national_id_field = create_form_field(
+        label="الرقم القومي",
+        name="national_id",
+        value=student.national_id
+    )
+    serial_no_field = create_form_field(
+        label="رقم المسلسل",
+        name="seq_number",
+        value=student.seq_number
+    )
+    faculty_field = ft.Dropdown(
+    label="الكلية",
+    data="faculty_id",
+    options=[
+        ft.dropdown.Option(key=str(faculty_id), text=faculty_name)
+        for faculty_id, faculty_name in faculty_lookup.items()
+    ],
+    value=str(student.faculty_id),  # default to the student’s current faculty
+    on_change=lambda e: update_field(name=e.control.data, value=e.control.value),
+    # optional styling to match your other fields:
+    border_color="#B58B18",
+    focused_border_color="#B58B18",
+    border_radius=8,
+    content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
+    )
 
-    serial_no_field = create_form_field("رقم المسلسل")
-    faculty_field = create_form_field("الكلية")
-    level_field = create_form_field("الفرقة") # Academic Year/Level
-    phone_field = create_form_field("رقم الهاتف")
+    phone_field = create_form_field(
+        label="رقم الهاتف",
+        name="phone_number",
+        value=student.phone_number
+    )
 
     # --- Save Button ---
     def save_data(e):
         print("Save button clicked!")
-        # Add logic here to:
-        # 1. Read values from all text fields (e.g., name_field.value)
-        # 2. Validate the data
-        # 3. Send data to backend/database for update
-        # 4. Show success/error message (e.g., SnackBar)
-        # 5. Optionally navigate back (page.go("/search_student"))
-        page.show_snack_bar(ft.SnackBar(ft.Text("تم حفظ التعديلات (محاكاة)"), open=True))
+        update_student(edit_attributes)
+        page.open(ft.SnackBar(ft.Text("تم حفظ التعديلات (محاكاة)")))
+        page.update()
+        print(edit_attributes)
         go_back(None) # Simulate going back after save
 
     save_button = ft.ElevatedButton(
@@ -85,7 +125,6 @@ def create_edit_student_view(page: ft.Page):
                 spacing=15,
                 controls=[
                     name_field,
-                    department_field,
                     national_id_field,
                 ]
             ),
@@ -102,7 +141,6 @@ def create_edit_student_view(page: ft.Page):
                              ft.Container(content=faculty_field, expand=True), # Faculty takes remaining space
                          ]
                      ),
-                     level_field,
                      phone_field,
                  ]
             )

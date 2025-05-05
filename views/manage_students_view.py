@@ -58,7 +58,8 @@ def create_manage_students_view(page: ft.Page):
     """Creates the Flet View for the Manage Student Data screen."""
 
     # ... (Back button and Title remain the same) ...
-    def go_back(e): page.views.pop(); top_view = page.views[-1]; page.go(top_view.route)
+    def go_back(e):
+        page.go("/attendance")
     back_button = ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color="#B58B18", tooltip="العودة", on_click=go_back, icon_size=30)
     page_title = ft.Text("ادارة بيانات الطلبة", size=28, weight=ft.FontWeight.BOLD, color="#B58B18")
 

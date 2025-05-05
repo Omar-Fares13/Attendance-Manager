@@ -1,15 +1,29 @@
 # student_crud.py
 from sqlmodel import Session, select
 from typing import List, Optional
-from models import Student
+from models import Student, Faculty, StudentCourse
 from db import get_session
-
+from sqlalchemy.orm import selectinload
+from DTOs.StudentCreateDTO import StudentCreateDTO
 # Create
-def create_student(student: Student) -> Student:
+def create_student(stu : StudentCreateDTO) -> Student:
+    student = Student(
+            name = stu.name,
+            phone_number = stu.phone_number,
+            is_male = stu.is_male,
+            faculty = stu.faculty_id,
+            national_id = stu.national_id,
+            qr_code = str(uuid.uuid4()),
+
+    )
     with next(get_session()) as session:
         session.add(student)
         session.commit()
         session.refresh(student)
+        stmt = select(Course.id).order_by(Course.end_date.desc()).limit(1)
+        course = Session.exec(stmt).one_or_none()
+        if course : 
+            student_course = StudentCourse(student_id = student.id) 
         return student
 
 # Read all
@@ -25,7 +39,10 @@ def get_student_by_id(student_id: int) -> Optional[Student]:
         return student
 
 # Update
-def update_student(student_id: int, updated_fields: dict) -> Optional[Student]:
+def update_student(updated_fields: dict) -> Optional[Student]:
+    if not "id" in updated_fields:
+        return
+    student_id = updated_fields["id"]
     with next(get_session()) as session:
         student = session.get(Student, student_id)
         if not student:
@@ -68,11 +85,7 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     Supported keys: name, national_id, phone_number, seq_num, faculty, qr_code
     """
     # start a fresh statement
-    stmt = select(Student)
-
-    # only join Faculty if we need to filter by it
-    if "faculty" in search_attributes:
-        stmt = stmt.join(Faculty)
+    stmt = select(Student).options(selectinload(Student.faculty))
 
     # apply filters in the order you like
     if "name" in search_attributes:
@@ -81,7 +94,7 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 
     if "national_id" in search_attributes:
         q = search_attributes["national_id"]
-        stmt = stmt.where(Student.national_id == q)
+        stmt = stmt.where(Student.national_id.ilike(f"%{q}%"))
 
     if "phone_number" in search_attributes:
         q = search_attributes["phone_number"]
@@ -89,12 +102,11 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 
     if "seq_num" in search_attributes:
         q = search_attributes["seq_num"]
-        # your model calls it suq_number
-        stmt = stmt.where(Student.suq_number.ilike(f"%{q}%"))
+        stmt = stmt.where(Student.seq_number.ilike(f"%{q}%"))
 
     if "qr_code" in search_attributes:
         q = search_attributes["qr_code"]
-        stmt = stmt.where(Student.qr_code.ilike(f"%{q}%"))
+        stmt = stmt.where(Student.qr_code.ilike(f"{q}"))
 
     if "faculty" in search_attributes:
         q = search_attributes["faculty"]

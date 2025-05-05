@@ -5,9 +5,9 @@ from utils.assets import ft_asset # No need for asset_path here directly
 
 # You might move this to a config file later
 DUMMY_PASSWORD = "password"
-
 def create_login_view(page: ft.Page):
     """Creates the Flet View for the Login screen."""
+    target = "/" + page.route.split("/")[-1]
 
     # --- Controls ---
     pwd_field = ft.TextField(
@@ -27,7 +27,7 @@ def create_login_view(page: ft.Page):
         if pwd_field.value == DUMMY_PASSWORD:
             print("Login successful!")
             # Navigate to the dashboard view
-            page.go("/dashboard")
+            page.go(target)
         else:
             print("Login failed")
             pwd_field.error_text = "كلمة المرور غير صحيحة"

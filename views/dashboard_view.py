@@ -23,7 +23,7 @@ def create_dashboard_card(page: ft.Page, icon_src: str, text: str, action_data: 
 
         # --- NAVIGATION LOGIC ---
         if action == "manage":
-            page.go("/manage_course")
+            page.go("/attendance")
         elif action == "register":
             page.go("/register_course")
         elif action == "reports":  # <<< ADD THIS CONDITION

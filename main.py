@@ -17,7 +17,7 @@ from views.register_course_options_view import create_register_course_options_vi
 from views.camera_qr_view import create_camera_qr_view
 from views.qr_display_view import create_qr_display_view
 from views.report_course_view import create_report_course_view
-
+from views.main_screen_view import create_main_screen_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -105,7 +105,7 @@ def main(page: ft.Page):
 
         # --- Add Views based on the actual route (ignoring params for now) ---
         # Login/Default Route (often checked first)
-        if actual_route == "/" or actual_route == "/login" or actual_route == "":
+        if actual_route == "/" or actual_route == "/login" or actual_route == "" or "/login/" in actual_route:
              try:
                  page.views.append(create_login_view(page))
              except NameError:
@@ -159,7 +159,8 @@ def main(page: ft.Page):
         # Reporting
         elif actual_route == "/report_course":
             page.views.append(create_report_course_view(page))
-
+        elif actual_route == "/main_screen":
+            page.views.append(create_main_screen_view(page))
         # --- Unknown Route Handling ---
         else:
              print(f"Unknown route: {target_route}, redirecting to login.")
@@ -206,7 +207,7 @@ def main(page: ft.Page):
     # ─── Initial Route ────────────────────────────────────────
     print("Starting app, navigating to initial route '/' ...")
     # Start at the root, route_change will handle displaying the login view
-    page.go("/")
+    page.go("/main_screen")
 
 
 # --- Run the App Entry Point ---

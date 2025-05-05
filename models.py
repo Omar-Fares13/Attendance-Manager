@@ -13,14 +13,14 @@ class Faculty(SQLModel, table=True):
 
 class Student(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    phone_number : str
+    phone_number : str = ""
     name: str
     is_male: bool
     faculty_id: int = Field(foreign_key="faculty.id")
-    suq_number: str
+    seq_number: str
     national_id: str
     qr_code: str
-    photo_path: str
+    photo_path: Optional[str] = ""
 
     # Relationships
     faculty: Optional[Faculty] = Relationship(back_populates="students")
