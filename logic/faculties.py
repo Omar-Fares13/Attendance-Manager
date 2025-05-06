@@ -2,6 +2,8 @@
 from sqlmodel import Session, select
 from typing import List, Optional
 from models import Faculty
+from sqlalchemy.orm import selectinload
+from typing import List, Optional
 from db import get_session
 
 # Create faculty
@@ -47,3 +49,17 @@ def delete_faculty(faculty_id: int) -> bool:
         session.delete(faculty)
         session.commit()
         return True
+
+
+def get_faculties(name_query: str) -> List[Faculty]:
+    """
+    Fetch all faculties whose name contains the given substring (case-insensitive).
+    """
+    stmt = (
+        select(Faculty)
+        .options(selectinload(Faculty.students))
+        .where(Faculty.name.ilike(f"%{name_query}%"))
+    )
+
+    with next(get_session()) as session:
+        return session.exec(stmt).all()
