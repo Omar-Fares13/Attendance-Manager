@@ -162,7 +162,7 @@ def create_search_student_view(page: ft.Page):
     # Click Handlers (Placeholders - replace with actual logic)
     def add_student_click(e):
         print("Add Student Clicked - Navigate or show form")
-        page.show_snack_bar(ft.SnackBar(ft.Text("فتح صفحة إضافة طالب..."), open=True))
+        page.go('/add_student')
         # Example: page.go("/add_student_form")
 
     def add_file_click(e):

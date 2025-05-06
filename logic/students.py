@@ -1,15 +1,67 @@
 # student_crud.py
 from sqlmodel import Session, select
 from typing import List, Optional
-from models import Student, Faculty, StudentCourse
+from models import Student, Faculty, Course, Note
 from db import get_session
 from sqlalchemy.orm import selectinload
 from DTOs.StudentCreateDTO import StudentCreateDTO
 import uuid
+from sqlalchemy import func
+from logic.faculties import create_faculty
+from logic.course import create_course
 # Create
+
+def create_student_from_dict(student_data: dict[str, any]) -> Student:
+    with next(get_session()) as session:
+        # Find the current max seq_number for this faculty
+        stmt = (
+            select(Course.id)
+            .where(Course.is_male_type == student_data["is_male"])
+            .order_by(Course.start_date.desc())
+            .limit(1)
+        )
+        course_id = session.exec(stmt).one_or_none()
+        student_data["course_id"] = course_id
+        student_data["is_male"] = student_data["is_male"] == "1"
+
+        stmt = (
+            select(Student.seq_number)
+            .where(Student.faculty_id == student_data["faculty_id"])
+            .where(Student.course_id == course_id)
+            .order_by(Student.seq_number.desc())
+            .limit(1)
+        )
+        seq = session.exec(stmt).one_or_none()
+
+        # Prepare the dict for instantiation
+        data = student_data.copy()
+        data["qr_code"] = str(uuid.uuid4())
+        data["seq_number"] = (int(seq) + 1) if seq is not None else 1
+
+        # Create and persist the Student
+        student = Student(**data)
+        session.add(student)
+        session.commit()
+        session.refresh(student)
+        return student
+
+
 def create_student(stu : StudentCreateDTO) -> Student:
     with next(get_session()) as session:
-        stmt = select(Student.seq_number).where(Student.faculty_id == stu.faculty_id).order_by(Student.seq_number.desc()).limit(1)
+        stmt = (
+            select(Course.id)
+            .where(Course.is_male_type == stu.is_male)
+            .order_by(Course.start_date.desc())
+            .limit(1)
+        )
+        course_id = session.exec(stmt).one_or_none()
+        stmt = (
+            select(Student.seq_number)
+            .where(Student.faculty_id == stu.faculty_id)
+            .where(Student.course_id == course_id)
+            .order_by(Student.seq_number.desc())
+            .limit(1)
+        )
         seq = session.exec(stmt).one_or_none()
         student = Student(
             name = stu.name,
@@ -18,7 +70,8 @@ def create_student(stu : StudentCreateDTO) -> Student:
             faculty_id = stu.faculty_id,
             national_id = stu.national_id,
             qr_code = str(uuid.uuid4()),
-            seq_number = int(seq) + 1 if seq else 1
+            seq_number = int(seq) + 1 if seq else 1,
+            course_id = course_id
             )    
         session.add(student)
         session.commit()
@@ -115,3 +168,30 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     with next(get_session()) as session:
         students: List[Student] = session.exec(stmt).all()
     return students
+
+def create_students_from_file(students, faculty, course_date, is_male):
+    with next(get_session()) as session:
+        stmt = (
+            select(Faculty.id)
+            .where(Faculty.name.ilike(f'%{faculty}%'))
+            .limit(1)
+        )
+        faculty_id = session.exec(stmt).one_or_none()
+        if faculty_id is None:
+            fac = create_faculty(faculty)
+            faculty_id = fac.id
+        stmt = (
+            select(Course.id)
+            .where(func.extract('day', Course.start_date) == course_date.day)
+            .where(Course.is_male_type == is_male)
+            .limit(1)
+        )
+        course_id = session.exec(stmt).one_or_none()
+        if course_id is None:
+            course = create_course(is_male_type = is_male, start_date = course_date)
+            course_id = course.id
+        for std in students:
+            std['course_id'] = course_id
+            std['faculty_id'] = faculty_id
+            std['is_male'] = is_male
+            create_student_from_dict(std)
