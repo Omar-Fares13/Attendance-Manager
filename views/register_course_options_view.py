@@ -4,6 +4,9 @@ from components.banner import create_banner
 # Import necessary icons and asset helper
 from utils.assets import (ft_asset, ICON_TRASH, ICON_FOLDER_UPLOAD, ICON_CAMERA_QR)
 
+
+attributes = {}
+
 # --- Reusable Card Function (Adapt from previous views) ---
 def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: str, action_data: str):
     """Creates a single card for course registration options."""
@@ -15,22 +18,28 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
     ICON_SIZE = 80 # Adjust size as needed
     CARD_WIDTH = 220 # Adjust width for three cards
 
+    gender = page.route.split('=')[-1]
+    if gender == 'male':
+        attributes['is_male'] = '1'
+    else:
+        attributes['is_male'] = '0'
+
     def card_clicked(e):
         action = e.control.data
         print(f"Register option card clicked: {action}")
-
         # --- NAVIGATION & ACTION LOGIC ---
+        target = ''
         if action == "qr_imaging": # Check if the QR/Camera card was clicked
-            page.go("/camera_qr") # <<< Navigate to the camera page
+            target = "/search_qr_student" # <<< Navigate to the camera page
         elif action == "clear_data":
-            # Placeholder: Show confirmation dialog maybe?
             page.show_snack_bar(ft.SnackBar(ft.Text("سيتم مسح البيانات الحالية... (تحتاج لتأكيد)"), open=True))
         elif action == "add_file":
-            page.go("/course_file_upload")
+            target = "/course_file_upload"
         else:
             # Fallback for any unexpected action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action}"), open=True))
-        # --- END NAVIGATION & ACTION LOGIC ---
+        target += '?male=' + attributes['is_male']
+        page.go(target)
 
 
     return ft.Container(

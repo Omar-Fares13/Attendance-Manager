@@ -7,24 +7,8 @@ class Faculty(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
 
-    # Back-reference to students
+    # Back‑reference to students
     students: List["Student"] = Relationship(back_populates="faculty")
-
-
-class Student(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    phone_number : str = ""
-    name: str
-    is_male: bool
-    faculty_id: int = Field(foreign_key="faculty.id")
-    seq_number: str
-    national_id: str
-    qr_code: str
-    photo_path: Optional[str] = ""
-
-    # Relationships
-    faculty: Optional[Faculty] = Relationship(back_populates="students")
-    student_courses: List["StudentCourse"] = Relationship(back_populates="student")
 
 
 class Course(SQLModel, table=True):
@@ -33,20 +17,27 @@ class Course(SQLModel, table=True):
     end_date: date
     is_male_type: bool
 
-    # Relationship to enrollments
-    student_courses: List["StudentCourse"] = Relationship(back_populates="course")
+    # Direct enrollments
+    students: List["Student"] = Relationship(back_populates="course")
 
 
-class StudentCourse(SQLModel, table=True):
+class Student(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    student_id: int = Field(foreign_key="student.id")
-    course_id: int = Field(foreign_key="course.id")
+    phone_number: str = ""
+    name: str
+    is_male: bool
+    faculty_id: int = Field(foreign_key="faculty.id")
+    course_id: int = Field(foreign_key="course.id")    # ← new FK
+    seq_number: str
+    national_id: str
+    qr_code: str
+    photo_path: Optional[str] = ""
 
     # Relationships
-    student: Optional[Student] = Relationship(back_populates="student_courses")
-    course: Optional[Course] = Relationship(back_populates="student_courses")
-    attendance: List["Attendance"] = Relationship(back_populates="student_course")
-    notes: List["Note"] = Relationship(back_populates="student_course")
+    faculty: Optional[Faculty] = Relationship(back_populates="students")
+    course: Optional[Course] = Relationship(back_populates="students")
+    attendance: List["Attendance"] = Relationship(back_populates="student")
+    notes: List["Note"]       = Relationship(back_populates="student")
 
 
 class Attendance(SQLModel, table=True):
@@ -54,17 +45,19 @@ class Attendance(SQLModel, table=True):
     date: date
     arrival_time: time
     leave_time: time
-    student_course_id: int = Field(foreign_key="studentcourse.id")
 
-    # Relationship to the enrollment
-    student_course: Optional[StudentCourse] = Relationship(back_populates="attendance")
+    student_id: int = Field(foreign_key="student.id")   # ← now points to Student
+
+    # Relationship to the student
+    student: Optional[Student] = Relationship(back_populates="attendance")
 
 
 class Note(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     note: str
     is_warning: bool
-    student_course_id: int = Field(foreign_key="studentcourse.id")
 
-    # Relationship to the enrollment
-    student_course: Optional[StudentCourse] = Relationship(back_populates="notes")
+    student_id: int = Field(foreign_key="student.id")   # ← now points to Student
+
+    # Relationship to the student
+    student: Optional[Student] = Relationship(back_populates="notes")

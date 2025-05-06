@@ -22,8 +22,8 @@ def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         if action == "search_student": # Check if the search card was clicked
             page.go("/search_student") # <<< Navigate to the new search view route
         # Add elif for "add_student" later
-        # elif action == "add_student":
-        #     page.go("/add_student_form")
+        elif action == "add_student":
+            page.go("/add_student")
         else:
             # Default placeholder action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action} (Not Implemented Yet)"), open=True))

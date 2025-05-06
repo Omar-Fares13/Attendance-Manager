@@ -2,8 +2,11 @@ from db import create_db_and_tables
 import models
 from logic.faculties import create_faculty
 from logic.students import create_student,get_student_by_id
+from logic.course import create_course
 from DTOs.StudentCreateDTO import StudentCreateDTO
 create_db_and_tables()
+
+create_faculty("Engineering")
 
 # Create and save a faculty
 student_1 = StudentCreateDTO(

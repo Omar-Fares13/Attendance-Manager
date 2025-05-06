@@ -50,6 +50,8 @@ except (ImportError, ValueError):
                  return path
 
 
+student = {}
+
 # --- Helper to display student data lines ---
 def create_data_row(label: str, value: str):
     return ft.Row(
@@ -85,6 +87,7 @@ def show_snackbar(page_ref: ft.Page, message: str, color: str = ft.colors.BLACK)
 def create_camera_qr_view(page: ft.Page):
     """Creates the Flet View for the Camera/QR screen with live camera feed."""
 
+    student['id'] = int(page.route.split('=')[-1])
     if not page.rtl:
         print("WARNING: page.rtl is not set to True.")
 
@@ -217,10 +220,9 @@ def create_camera_qr_view(page: ft.Page):
 
     # --- Controls Definitions ---
     def go_back(e):
-        page.go("/register_course_options")
-
-    student = get_student_by_id(student_id)
-
+        print(student['id'])
+        page.go("/search_qr_student?male=1")
+        
     back_button_top_left = ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color="#B58B18", tooltip="العودة", on_click=go_back, icon_size=30)
     page_title = ft.Text("الصورة", size=32, weight=ft.FontWeight.BOLD, color="#B58B18", text_align=ft.TextAlign.CENTER)
     student_data_column = ft.Column(

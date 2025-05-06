@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 from components.banner import create_banner
 from logic.file_reader import read_pdf
-
+from logic.students import create_students_from_file
 # Colors and style constants
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"
@@ -15,6 +15,18 @@ PLACEHOLDER_DARK_HEADER = "#6D6D6D"
 CONFIRM_BUTTON_COLOR = ft.colors.LIME_700
 CANCEL_BUTTON_COLOR = ft.colors.RED_600
 DIALOG_BG_COLOR = ft.colors.WHITE
+
+
+file_students = {}
+
+def add_students(e):
+    students = file_students['students']
+    is_male = file_students['is_male']
+    file_students['students'] = ''
+    print(file_students)
+    faculty = file_students['faculty']
+    course_date = file_students['date']
+    create_students_from_file(students, faculty, course_date, is_male)
 
 def create_table_cell(text_content):
     return ft.DataCell(ft.Text(str(text_content), color=CELL_TEXT_COLOR, text_align=ft.TextAlign.RIGHT, size=13))
@@ -28,6 +40,10 @@ def create_upload_course_file_view(page: ft.Page):
     selected_file_full_path = ft.Ref[str]()
     data_table_ref = ft.Ref[ft.DataTable]()  # Ref for our datatable
 
+    print(page.route)
+    print(page.route.split('=')[-1])
+    file_students['is_male'] = page.route.split('=')[-1]
+    ismale = file_students['is_male']
     # --- Table Columns ---
     columns = [
         ft.DataColumn(ft.Text("الرقم المسلسل", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER), numeric=True),
@@ -67,7 +83,7 @@ def create_upload_course_file_view(page: ft.Page):
             page.update()
             return
 
-        page.go("/edit_course_data")  # Go to next view after confirm
+        page.go("/register_course")  # Go to next view after confirm
 
     def handle_cancel_upload(e):
         if confirmation_dialog_ref.current:
@@ -76,7 +92,7 @@ def create_upload_course_file_view(page: ft.Page):
 
     def go_back(e):
         selected_file_full_path.current = None
-        page.go("/register_course_options")
+        page.go("/register_course_options?male=" + file_students['is_male'])
 
     def on_file_picked(e: ft.FilePickerResultEvent):
         if e.files and len(e.files) > 0:
@@ -87,14 +103,15 @@ def create_upload_course_file_view(page: ft.Page):
                 file_path_field_ref.current.error_text = None
 
                 # ---- Main PDF parsing Logic ----
-                ismale = page.session.get("isMale")
                 students, faculty = read_pdf(selected_file.path, ismale)
+                file_students['students'] = students
+                file_students['faculty'] = faculty
                 new_rows = [
                     ft.DataRow(cells=[
-                        create_table_cell(student.seq_number),
-                        create_table_cell(student.name),
-                        create_table_cell(student.national_id),
-                        create_table_cell(getattr(student, "faculty", faculty)),
+                        create_table_cell(student['seq_number']),
+                        create_table_cell(student['name']),
+                        create_table_cell(student['national_id']),
+                        create_table_cell(faculty),
                     ])
                     for student in students
                 ]
@@ -131,6 +148,7 @@ def create_upload_course_file_view(page: ft.Page):
             page.update()
 
     def on_date_picked(e):
+        file_students['date'] = e.control.value
         picker_instance = date_picker_ref.current
         if picker_instance and picker_instance.value:
             selected_date = picker_instance.value
@@ -143,9 +161,6 @@ def create_upload_course_file_view(page: ft.Page):
             if page.dialog == picker_instance:
                 page.dialog = None
             page.update()
-
-    def next_step_action(e):
-        page.go("/edit_course_data")
 
     # --- Picker setup ---
     fp_exists = any(isinstance(ctrl, ft.FilePicker) for ctrl in page.overlay)
@@ -247,9 +262,9 @@ def create_upload_course_file_view(page: ft.Page):
         ),
     )
     next_step_button = ft.ElevatedButton(
-        text="الخطوة التالية",
+        text="تأكيد",
         bgcolor=PRIMARY_COLOR, color=WHITE_COLOR, height=50, width=200,
-        on_click=next_step_action,
+        on_click=add_students,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8), padding=ft.padding.symmetric(vertical=10))
     )
     info_text = ft.Row(
