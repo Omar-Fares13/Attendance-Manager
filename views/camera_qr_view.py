@@ -8,6 +8,9 @@ import base64
 import threading
 import time
 import numpy as np
+from logic.students import get_student_by_id
+
+student_id = 1
 
 # --- Asset and Banner Imports (Keep your original logic) ---
 try:
@@ -215,7 +218,9 @@ def create_camera_qr_view(page: ft.Page):
     # --- Controls Definitions ---
     def go_back(e):
         page.go("/register_course_options")
-        
+
+    student = get_student_by_id(student_id)
+
     back_button_top_left = ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color="#B58B18", tooltip="العودة", on_click=go_back, icon_size=30)
     page_title = ft.Text("الصورة", size=32, weight=ft.FontWeight.BOLD, color="#B58B18", text_align=ft.TextAlign.CENTER)
     student_data_column = ft.Column(
@@ -223,19 +228,32 @@ def create_camera_qr_view(page: ft.Page):
         controls=[
             ft.Row([ft.Text("بيانات الطالب", size=18, weight=ft.FontWeight.BOLD, color="#B58B18")], alignment=ft.MainAxisAlignment.CENTER),
             ft.Divider(height=1, color=ft.colors.with_opacity(0.5, "#B58B18")),
-            create_data_row("الاسم:", "محمد محمد محمد"),
-            create_data_row("ID الطالب:", "123456"),
-            create_data_row("الرقم القومي:", "12345678901234"),
-            create_data_row("الكلية:", "الهندسة"),
-            create_data_row("مسلسل:", "123"),
+            create_data_row("الاسم:", student.name),
+            create_data_row("ID الطالب:", student.id),
+            create_data_row("الرقم القومي:", student.national_id),
+            create_data_row("الكلية:", ""),
+            create_data_row("مسلسل:", student.seq_number),
             create_data_row("ملاحظات:", "واحد اثنان ثلاثة اربعة"),
         ]
     )
 
     # --- Button Click Handlers ---
     def show_qr_click(e):
-        print("Show QR Clicked - Navigating away")
-        page.go("/") # Simulate nav
+        print("Show QR Clicked - Opening QR Popup")
+
+        qr_image = ft.Image(src="C:\Work Space\Military Project\Attendance Manager\captured_images\2625a547-67ac-4faa-8ae4-7702b8ef72d1.jpg", width=200, height=200)
+
+        qr_dialog = ft.AlertDialog(
+            title=ft.Text("Your QR Code"),
+            content=qr_image,
+            actions=[ft.TextButton("Close", on_click=lambda e: qr_dialog.close())],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        page.dialog = qr_dialog
+        qr_dialog.open = True
+        qr_dialog.update()   # Required to show
+        page.update() 
 
     def retake_photo_click(e):
         print("Retake Photo Clicked")
@@ -261,8 +279,7 @@ def create_camera_qr_view(page: ft.Page):
             try:
                 save_dir = "captured_images"
                 os.makedirs(save_dir, exist_ok=True)
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                filename = f"capture_{timestamp}.jpg"
+                filename = f"{student.qr_code}.jpg"
                 filepath = os.path.join(save_dir, filename)
                 if current_frame.size == 0:
                     print("Error: Captured frame empty.")
