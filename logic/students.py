@@ -163,7 +163,14 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     if "faculty" in search_attributes:
         q = search_attributes["faculty"]
         stmt = stmt.where(Faculty.name.ilike(f"%{q}%"))
-
+    
+    if 'is_male' in search_attributes:
+        q = search_attributes['is_male']
+        stmt = stmt.where(Student.is_male == q)
+    
+    if 'course_id' in search_attributes:
+        q = search_attributes['course_id']
+        stmt = stmt.where(Student.course_id == q)
     # execute and return
     with next(get_session()) as session:
         students: List[Student] = session.exec(stmt).all()

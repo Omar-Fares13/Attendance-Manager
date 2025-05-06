@@ -30,7 +30,7 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         # --- NAVIGATION & ACTION LOGIC ---
         target = ''
         if action == "qr_imaging": # Check if the QR/Camera card was clicked
-            target = "/camera_qr" # <<< Navigate to the camera page
+            target = "/search_qr_student" # <<< Navigate to the camera page
         elif action == "clear_data":
             page.show_snack_bar(ft.SnackBar(ft.Text("سيتم مسح البيانات الحالية... (تحتاج لتأكيد)"), open=True))
         elif action == "add_file":

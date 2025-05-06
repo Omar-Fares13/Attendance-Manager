@@ -28,3 +28,14 @@ def create_course(
         session.commit()
         session.refresh(course)
         return course
+
+def get_latest_course(is_male_type : bool = True):
+    with next(get_session()) as session:
+        stmt = (
+            select(Course)
+            .where(Course.is_male_type == is_male_type)
+            .order_by(Course.start_date.desc())
+            .limit(1)
+        )
+        course = session.exec(stmt).one_or_none()
+        return course
