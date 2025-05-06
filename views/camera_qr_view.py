@@ -88,6 +88,7 @@ def create_camera_qr_view(page: ft.Page):
     """Creates the Flet View for the Camera/QR screen with live camera feed."""
 
     student['id'] = int(page.route.split('=')[-1])
+    student_data = get_student_by_id(student['id'])
     if not page.rtl:
         print("WARNING: page.rtl is not set to True.")
 
@@ -230,11 +231,11 @@ def create_camera_qr_view(page: ft.Page):
         controls=[
             ft.Row([ft.Text("بيانات الطالب", size=18, weight=ft.FontWeight.BOLD, color="#B58B18")], alignment=ft.MainAxisAlignment.CENTER),
             ft.Divider(height=1, color=ft.colors.with_opacity(0.5, "#B58B18")),
-            create_data_row("الاسم:", student.name),
-            create_data_row("ID الطالب:", student.id),
-            create_data_row("الرقم القومي:", student.national_id),
+            create_data_row("الاسم:", student_data.name),
+            create_data_row("ID الطالب:", student_data.id),
+            create_data_row("الرقم القومي:", student_data.national_id),
             create_data_row("الكلية:", ""),
-            create_data_row("مسلسل:", student.seq_number),
+            create_data_row("مسلسل:", student_data.seq_number),
             create_data_row("ملاحظات:", "واحد اثنان ثلاثة اربعة"),
         ]
     )
