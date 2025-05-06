@@ -9,6 +9,19 @@ def create_login_view(page: ft.Page):
     """Creates the Flet View for the Login screen."""
     target = "/" + page.route.split("/")[-1]
 
+    def do_login(e):
+        """Handles the login button click."""
+        if pwd_field.value == DUMMY_PASSWORD:
+            print("Login successful!")
+            # Navigate to the dashboard view
+            page.go(target)
+        else:
+            print("Login failed")
+            pwd_field.error_text = "كلمة المرور غير صحيحة"
+            pwd_field.value = "" # Clear password on error
+            pwd_field.focus()
+            page.update() # Update only the view containing the field
+            
     # --- Controls ---
     pwd_field = ft.TextField(
         label="كلمة السر",
@@ -22,19 +35,6 @@ def create_login_view(page: ft.Page):
         content_padding=ft.padding.symmetric(horizontal=15, vertical=15),
         on_submit=do_login
     )
-
-    def do_login(e):
-        """Handles the login button click."""
-        if pwd_field.value == DUMMY_PASSWORD:
-            print("Login successful!")
-            # Navigate to the dashboard view
-            page.go(target)
-        else:
-            print("Login failed")
-            pwd_field.error_text = "كلمة المرور غير صحيحة"
-            pwd_field.value = "" # Clear password on error
-            pwd_field.focus()
-            page.update() # Update only the view containing the field
 
     login_btn = ft.ElevatedButton(
         text="تسجيل الدخول",

@@ -23,6 +23,7 @@ from views.upload_course_file_view import create_upload_course_file_view
 from views.add_student_view import create_add_student_view
 from views.qr_search_view import create_qr_search_student_view
 from views.edit_course_data_view import create_edit_course_data_view
+from views.delete_all_confirmation_view import create_delete_confirmation_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -110,7 +111,7 @@ def main(page: ft.Page):
 
         # --- Add Views based on the actual route (ignoring params for now) ---
         # Login/Default Route (often checked first)
-        if actual_route == "/" or actual_route == "/login" or actual_route == "" or "/login/" in actual_route:
+        if actual_route in ["/", "/login", ""]:
              try:
                  page.views.append(create_login_view(page))
              except NameError:
@@ -131,6 +132,8 @@ def main(page: ft.Page):
             page.views.append(create_manage_course_view(page))
         elif actual_route == "/register_course_options":
              page.views.append(create_register_course_options_view(page))
+        elif actual_route == "/delete_all_data":
+            page.views.append(create_delete_confirmation_view(page))
         elif actual_route == "/register_course":
              page.views.append(create_register_course_view(page))
 

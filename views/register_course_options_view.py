@@ -32,13 +32,16 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         if action == "qr_imaging": # Check if the QR/Camera card was clicked
             target = "/search_qr_student" # <<< Navigate to the camera page
         elif action == "clear_data":
-            page.show_snack_bar(ft.SnackBar(ft.Text("سيتم مسح البيانات الحالية... (تحتاج لتأكيد)"), open=True))
+            target = "/login/delete_all_data"
         elif action == "add_file":
             target = "/course_file_upload"
         else:
             # Fallback for any unexpected action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action}"), open=True))
-        target += '?male=' + attributes['is_male']
+        
+        if action != "clear_data":
+            target += '?male=' + attributes['is_male']
+
         page.go(target)
 
 
