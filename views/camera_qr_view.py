@@ -234,7 +234,7 @@ def create_camera_qr_view(page: ft.Page):
             create_data_row("الاسم:", student_data.name),
             create_data_row("ID الطالب:", student_data.id),
             create_data_row("الرقم القومي:", student_data.national_id),
-            create_data_row("الكلية:", ""),
+            create_data_row("الكلية:", student_data.faculty.name),
             create_data_row("مسلسل:", student_data.seq_number),
             create_data_row("ملاحظات:", "واحد اثنان ثلاثة اربعة"),
         ]
@@ -282,7 +282,7 @@ def create_camera_qr_view(page: ft.Page):
             try:
                 save_dir = "captured_images"
                 os.makedirs(save_dir, exist_ok=True)
-                filename = f"{student.qr_code}.jpg"
+                filename = f"{student_data.qr_code}.jpg"
                 filepath = os.path.join(save_dir, filename)
                 if current_frame.size == 0:
                     print("Error: Captured frame empty.")

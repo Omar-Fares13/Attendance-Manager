@@ -1,5 +1,6 @@
 # student_crud.py
 from sqlmodel import Session, select
+from sqlalchemy.orm import joinedload
 from typing import List, Optional
 from models import Student, Faculty, Course, Note
 from db import get_session
@@ -84,11 +85,12 @@ def get_all_students() -> List[Student]:
         students = session.exec(select(Student)).all()
         return students
 
-# Read one
+
 def get_student_by_id(student_id: int) -> Optional[Student]:
     with next(get_session()) as session:
-        student = session.get(Student, student_id)
+        student = session.query(Student).options(joinedload(Student.faculty)).filter(Student.id == student_id).one_or_none()
         return student
+
 
 # Update
 def update_student(updated_fields: dict) -> Optional[Student]:
