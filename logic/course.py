@@ -39,3 +39,12 @@ def get_latest_course(is_male_type : bool = True):
         )
         course = session.exec(stmt).one_or_none()
         return course
+
+def get_all_courses():
+    with next(get_session) as session:
+        stmt = (
+            select(Course)
+            .order_by(Course.start_date.desc())
+        )
+        courses = session.exec(stmt).all()
+        return courses

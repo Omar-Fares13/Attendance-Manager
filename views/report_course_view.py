@@ -1,7 +1,8 @@
 # views/report_course_view.py
 import flet as ft
 from components.banner import create_banner # Assuming your banner is reusable
-
+from logic.faculties import get_all_faculties
+from logic.course import get_all_courses
 # --- Constants for Styling (Adjusted based on image) ---
 PAGE_BGCOLOR = "#E3DCCC" # Light beige/tan background from image
 FORM_BORDER_COLOR = "#B58B18" # Gold color from image border/text
@@ -17,7 +18,15 @@ BUTTON_TEXT_COLOR = ft.colors.WHITE
 # --- Placeholder Functions ---
 # It's better practice to access controls via references instead of deep indexing
 # We'll create references in the create_report_course_view function
-
+def course_title(course):
+    title = "دورة "
+    title += str(course.start_date)
+    title += " "
+    if course.is_male_type:
+        title += "ذكور"
+    else:
+        title += 'اناث'
+    return title
 def submit_report_request(e: ft.ControlEvent):
     page = e.page
     view = page.views[-1] # Get the current view
@@ -56,7 +65,7 @@ def create_report_course_view(page: ft.Page):
         icon_size=30,
         on_click=go_back_to_dashboard
     )
-
+    
     # --- Title ---
     title = ft.Text(
         "استخراج تقرير دورة",
@@ -65,16 +74,23 @@ def create_report_course_view(page: ft.Page):
         color=TITLE_COLOR,
         text_align=ft.TextAlign.CENTER
     )
+    # first, fetch all courses (e.g. sorted however you like)
+    courses = get_all_courses()
 
-    # --- Input Fields ---
-    # Using hint_text for label-inside effect and text_align=RIGHT
-    course_date_field = ft.TextField(
-        hint_text="تاريخ الدورة", # Use hint_text instead of label
+    # then build a Dropdown instead of a TextField:
+    course_dropdown = ft.Dropdown(
+        hint_text="تاريخ الدورة",           # your placeholder
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
         text_align=ft.TextAlign.RIGHT,
-        # Consider using a DatePicker later by wrapping this or replacing
+        options=[
+            # label shown in the list, key is the .value you’ll read out
+            ft.dropdown.Option(text=course_title(c), key=c.id)
+            for c in courses
+        ],
+        # optionally pre‑select the first one (or leave as None)
+        value=courses[0].id if courses else None,
     )
 
     college_dropdown = ft.Dropdown(
