@@ -174,7 +174,8 @@ def create_search_student_view(page: ft.Page):
         # This button navigates to the edit page
         print("Edit Student Data Clicked - Navigating to Edit Page")
         # In a real app, consider passing student ID: page.go(f"/edit_student/{student_id}")
-        page.go(f"/login/edit_student?student_id={student_id}") # Navigate to the edit student view route
+        page.student_id = student_id
+        page.go(f"/login/edit_student") # Navigate to the edit student view route
 
     # Button Styling
     button_style = ft.ButtonStyle( shape=ft.RoundedRectangleBorder(radius=8) )

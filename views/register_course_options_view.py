@@ -18,12 +18,7 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
     ICON_SIZE = 80 # Adjust size as needed
     CARD_WIDTH = 220 # Adjust width for three cards
 
-    gender = page.route.split('=')[-1]
-    if gender == 'male':
-        attributes['is_male'] = '1'
-    else:
-        attributes['is_male'] = '0'
-
+    attributes['is_male'] = page.is_male
     def card_clicked(e):
         action = e.control.data
         print(f"Register option card clicked: {action}")
@@ -38,10 +33,6 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         else:
             # Fallback for any unexpected action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action}"), open=True))
-        
-        if action != "clear_data":
-            target += '?male=' + attributes['is_male']
-
         page.go(target)
 
 

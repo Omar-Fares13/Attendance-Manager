@@ -20,7 +20,11 @@ def create_gender_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         print(f"Gender card clicked: {action}")
         # --- NAVIGATION LOGIC ---
         # Navigate to the next step regardless of gender selected
-        page.go(f"/register_course_options?gender={action}") # <<< Navigate to the new options page
+        if action == 'male':
+            page.is_male = '1'
+        else:
+            page.is_male = '0'
+        page.go(f"/register_course_options") # <<< Navigate to the new options page
         # ---
 
     # Return Container (structure remains the same)

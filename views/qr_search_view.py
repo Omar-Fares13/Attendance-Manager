@@ -70,16 +70,10 @@ def create_qr_search_student_view(page: ft.Page):
 
     # --- Controls ---
     # Back button navigation
-    is_male = page.route.split('=')[-1]
-    if is_male == '1':
-        is_male = True
-    else:
-        is_male = False
-    search_attributes['is_male'] = True
-    search_attributes['course_id'] = get_latest_course(is_male_type = is_male).id
+    search_attributes['is_male'] = page.is_male == '1'
+    search_attributes['course_id'] = get_latest_course(is_male_type = page.is_male).id
     def go_back(e):
-        male = '1' if is_male else '0'
-        page.go("/register_course_options?male=" + male)
+        page.go("/register_course_options")
     
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # Looks like back arrow in RTL
@@ -179,7 +173,8 @@ def create_qr_search_student_view(page: ft.Page):
         # Example: Implement file picker logic here
 
     def search_data_click(student_id : int = 1):
-        page.go(f"/camera_qr?id={student_id}") # Navigate to the edit student view route
+        page.student_id = student_id
+        page.go(f"/camera_qr") # Navigate to the edit student view route
 
     # Button Styling
     button_style = ft.ButtonStyle( shape=ft.RoundedRectangleBorder(radius=8) )

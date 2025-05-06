@@ -50,8 +50,7 @@ def create_edit_student_view(page: ft.Page):
         "تعديل بيانات الطالب", # Edit Student Data
         size=32, weight=ft.FontWeight.BOLD, color="#B58B18"
     )
-    student_id_str = page.route.split("=")[-1]
-    student_id = int(student_id_str) if student_id_str is not None else None
+    student_id = page.student_id
     edit_attributes["id"] = student_id
     student = get_student_by_id(student_id)
     # --- Form Fields ---

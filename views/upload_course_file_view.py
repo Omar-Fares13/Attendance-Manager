@@ -31,9 +31,7 @@ def create_upload_course_file_view(page: ft.Page):
     selected_file_full_path = ft.Ref[str]()
     data_table_ref = ft.Ref[ft.DataTable]()  # Ref for our datatable
 
-    print(page.route)
-    print(page.route.split('=')[-1])
-    file_students['is_male'] = page.route.split('=')[-1]
+    file_students['is_male'] = page.is_male
     ismale = file_students['is_male']
     # --- Table Columns ---
     columns = [
@@ -83,7 +81,8 @@ def create_upload_course_file_view(page: ft.Page):
 
     def go_back(e):
         selected_file_full_path.current = None
-        page.go("/register_course_options?male=" + file_students['is_male'])
+        page.is_male = file_students['is_male']
+        page.go("/register_course_options")
 
     def on_file_picked(e: ft.FilePickerResultEvent):
         print(e.files)
