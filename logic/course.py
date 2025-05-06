@@ -15,6 +15,8 @@ def create_course(
     if end_date is None:
         end_date = start_date + timedelta(days=12)
 
+    if is_male_type == '1':
+        is_male_type = True
     # 2) Now create and persist:
     with next(get_session()) as session:
         course = Course(

@@ -43,7 +43,7 @@ def create_upload_course_file_view(page: ft.Page):
     print(page.route)
     print(page.route.split('=')[-1])
     file_students['is_male'] = page.route.split('=')[-1]
-
+    ismale = file_students['is_male']
     # --- Table Columns ---
     columns = [
         ft.DataColumn(ft.Text("الرقم المسلسل", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER), numeric=True),
@@ -92,7 +92,7 @@ def create_upload_course_file_view(page: ft.Page):
 
     def go_back(e):
         selected_file_full_path.current = None
-        page.go("/register_course_options")
+        page.go("/register_course_options?male=" + file_students['is_male'])
 
     def on_file_picked(e: ft.FilePickerResultEvent):
         if e.files and len(e.files) > 0:
