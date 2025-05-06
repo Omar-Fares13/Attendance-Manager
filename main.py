@@ -22,6 +22,7 @@ from views.manage_colleges_view import create_manage_colleges_view
 from views.upload_course_file_view import create_upload_course_file_view
 from views.add_student_view import create_add_student_view
 from views.qr_search_view import create_qr_search_student_view
+from views.edit_course_data_view import create_edit_course_data_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -178,6 +179,8 @@ def main(page: ft.Page):
             page.views.append(create_add_student_view(page))
         elif actual_route == '/search_qr_student':
             page.views.append(create_qr_search_student_view(page))
+        elif actual_route == '/edit_course_data':
+            page.views.append(create_edit_course_data_view(page))
         # --- Unknown Route Handling ---
         else:
              print(f"Unknown route: {target_route}, redirecting to login.")

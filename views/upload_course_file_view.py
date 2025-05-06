@@ -82,8 +82,8 @@ def create_upload_course_file_view(page: ft.Page):
             page.snack_bar.open = True
             page.update()
             return
-
-        page.go("/register_course")  # Go to next view after confirm
+        page.file_students = file_students
+        page.go("/edit_course_data")  # Go to next view after confirm
 
     def handle_cancel_upload(e):
         if confirmation_dialog_ref.current:
@@ -95,8 +95,10 @@ def create_upload_course_file_view(page: ft.Page):
         page.go("/register_course_options?male=" + file_students['is_male'])
 
     def on_file_picked(e: ft.FilePickerResultEvent):
-        if e.files and len(e.files) > 0:
-            selected_file = e.files[0]
+        print(e.files)
+        all_students = []
+        for file in e.files:
+            selected_file = file
             if file_path_field_ref.current:
                 file_path_field_ref.current.value = selected_file.name
                 selected_file_full_path.current = selected_file.path
@@ -104,30 +106,27 @@ def create_upload_course_file_view(page: ft.Page):
 
                 # ---- Main PDF parsing Logic ----
                 students, faculty = read_pdf(selected_file.path, ismale)
-                file_students['students'] = students
-                file_students['faculty'] = faculty
-                new_rows = [
-                    ft.DataRow(cells=[
-                        create_table_cell(student['seq_number']),
-                        create_table_cell(student['name']),
-                        create_table_cell(student['national_id']),
-                        create_table_cell(faculty),
-                    ])
-                    for student in students
-                ]
-                data_table_ref.current.rows = new_rows
-                page.update()
-        else:
-            selected_file_full_path.current = None
-            if file_path_field_ref.current:
-                file_path_field_ref.current.value = None
+                for std in students:
+                    all_students.append(std)
+
+        file_students['students'] = all_students
+        new_rows = [
+            ft.DataRow(cells=[
+                create_table_cell(student['seq_number']),
+                create_table_cell(student['name']),
+                create_table_cell(student['national_id']),
+                create_table_cell(faculty),
+            ])
+            for student in all_students
+        ]
+        data_table_ref.current.rows = new_rows
         page.update()
 
     def pick_file(e):
         if file_picker_ref.current:
             file_picker_ref.current.pick_files(
                 dialog_title="اختر ملف بيانات الدورة",
-                allow_multiple=False,
+                allow_multiple=True,
                 allowed_extensions=["pdf"]  # Only PDF!
             )
         else:
@@ -264,7 +263,7 @@ def create_upload_course_file_view(page: ft.Page):
     next_step_button = ft.ElevatedButton(
         text="تأكيد",
         bgcolor=PRIMARY_COLOR, color=WHITE_COLOR, height=50, width=200,
-        on_click=add_students,
+        on_click=handle_confirm_upload,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8), padding=ft.padding.symmetric(vertical=10))
     )
     info_text = ft.Row(

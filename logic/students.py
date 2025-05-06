@@ -10,6 +10,7 @@ import uuid
 from sqlalchemy import func
 from logic.faculties import create_faculty
 from logic.course import create_course
+from logic.faculties import get_faculties 
 # Create
 
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
@@ -24,6 +25,15 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
         course_id = session.exec(stmt).one_or_none()
         student_data["course_id"] = course_id
         student_data["is_male"] = student_data["is_male"] == "1"
+        if not 'faculty_id' in student_data:
+            fac_name = student_data['faculty']
+            student_data.pop('faculty', None)
+            cands = get_faculties(fac_name)
+            if not cands or len(cands) == 0:
+                cands = [Faculty(name = fac_name)]
+            fac = cands[0]
+            student_data['faculty_id'] = fac.id
+
 
         stmt = (
             select(Student.seq_number)
@@ -37,7 +47,8 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
         # Prepare the dict for instantiation
         data = student_data.copy()
         data["qr_code"] = str(uuid.uuid4())
-        data["seq_number"] = (int(seq) + 1) if seq is not None else 1
+        if not 'seq_number' in data:
+            data["seq_number"] = (int(seq) + 1) if seq is not None else 1
 
         # Create and persist the Student
         student = Student(**data)

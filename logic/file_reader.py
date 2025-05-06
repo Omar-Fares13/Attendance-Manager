@@ -48,11 +48,33 @@ def read_pdf(path: str, is_male: bool = True):
                             "seq_number": seq_number,
                             "name":        name,
                             "national_id": national_id,
-                            "is_male":     is_male
+                            "is_male":     is_male,
+                            "faculty": faculty_name
                         })
 
-    return students, faculty_name
+        students.sort(key=lambda x: x["seq_number"])
 
+        unique_ids = set()
+        duplicates = []
+        max_id = 0
+
+        for student in students:
+            if student['seq_number'] in unique_ids:
+                duplicates.append(student)
+            else:
+                unique_ids.add(student['seq_number'])
+                if student['seq_number'] > max_id:
+                    max_id = student['seq_number']
+
+        clean_students = [s for s in students if s not in duplicates]
+
+        new_id = max_id + 1
+        for duplicate in duplicates:
+            duplicate['seq_number'] = new_id
+            clean_students.append(duplicate)
+            new_id += 1
+
+        return clean_students, faculty_name
 if __name__ == "__main__":
     pdf_path = "military_data.pdf"  # make sure this file is in the same folder
     students, faculty = read_pdf(pdf_path)
