@@ -1,9 +1,8 @@
 # views/edit_course_data_view.py
 
 import flet as ft
-from logic.students import create_student_from_dict
+from logic.students import create_students_from_file
 from components.banner import create_banner # Assuming banner component is reusable
-
 # --- Define Colors & Fonts (copy from other views for consistency) ---
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18" # Gold/Brown
@@ -47,7 +46,7 @@ def create_edit_course_data_view(page: ft.Page):
     # --- Retrieve Data Stored from Previous Step (or use defaults) ---
     headers = ["الاسم", "الرقم المتسلسل", "الرقم القومي", "الكلية"]
     attribs['is_male'] = (page.file_students)['students'][0]['is_male']
-    
+    attribs['date'] = page.file_students['date']
     data_rows = [[std['name'], std['seq_number'], std['national_id'], std['faculty']] for std in (page.file_students)['students']]
     course_file_name = page.client_storage.get("pending_course_name") or "ملف غير محدد"
 
@@ -84,9 +83,9 @@ def create_edit_course_data_view(page: ft.Page):
                         value = value
                     current_row_data.append(value)
             std = {'name' : current_row_data[0], 'seq_number' : current_row_data[1], 'national_id' : current_row_data[2], 'faculty' : current_row_data[3], 'is_male' : attribs['is_male']}
+            
             updated_data.append(std)
-        for std in updated_data:
-            create_student_from_dict(std)
+        create_students_from_file(updated_data, attribs['date'], attribs['is_male'])
         # --- 3. Navigate ---
         page.go("/dashboard")
 

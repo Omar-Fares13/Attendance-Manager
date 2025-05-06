@@ -19,15 +19,6 @@ DIALOG_BG_COLOR = ft.colors.WHITE
 
 file_students = {}
 
-def add_students(e):
-    students = file_students['students']
-    is_male = file_students['is_male']
-    file_students['students'] = ''
-    print(file_students)
-    faculty = file_students['faculty']
-    course_date = file_students['date']
-    create_students_from_file(students, faculty, course_date, is_male)
-
 def create_table_cell(text_content):
     return ft.DataCell(ft.Text(str(text_content), color=CELL_TEXT_COLOR, text_align=ft.TextAlign.RIGHT, size=13))
 

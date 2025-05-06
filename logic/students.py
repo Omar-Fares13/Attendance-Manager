@@ -10,7 +10,7 @@ import uuid
 from sqlalchemy import func
 from logic.faculties import create_faculty
 from logic.course import create_course
-from logic.faculties import get_faculties 
+from logic.faculties import get_faculties, create_faculty
 # Create
 
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
@@ -30,10 +30,10 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
             student_data.pop('faculty', None)
             cands = get_faculties(fac_name)
             if not cands or len(cands) == 0:
-                cands = [Faculty(name = fac_name)]
+                cands = [create_faculty(fac_name)]
             fac = cands[0]
             student_data['faculty_id'] = fac.id
-
+        print(student_data)
 
         stmt = (
             select(Student.seq_number)
@@ -189,17 +189,8 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
         students: List[Student] = session.exec(stmt).all()
     return students
 
-def create_students_from_file(students, faculty, course_date, is_male):
+def create_students_from_file(students, course_date, is_male):
     with next(get_session()) as session:
-        stmt = (
-            select(Faculty.id)
-            .where(Faculty.name.ilike(f'%{faculty}%'))
-            .limit(1)
-        )
-        faculty_id = session.exec(stmt).one_or_none()
-        if faculty_id is None:
-            fac = create_faculty(faculty)
-            faculty_id = fac.id
         stmt = (
             select(Course.id)
             .where(func.extract('day', Course.start_date) == course_date.day)
@@ -212,6 +203,5 @@ def create_students_from_file(students, faculty, course_date, is_male):
             course_id = course.id
         for std in students:
             std['course_id'] = course_id
-            std['faculty_id'] = faculty_id
             std['is_male'] = is_male
             create_student_from_dict(std)
