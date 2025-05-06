@@ -26,8 +26,7 @@ def create_option_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
             # Placeholder: Show confirmation dialog maybe?
             page.show_snack_bar(ft.SnackBar(ft.Text("سيتم مسح البيانات الحالية... (تحتاج لتأكيد)"), open=True))
         elif action == "add_file":
-            # Placeholder: Trigger file picker
-            page.show_snack_bar(ft.SnackBar(ft.Text("فتح نافذة اختيار ملف الدورة..."), open=True))
+            page.go("/course_file_upload")
         else:
             # Fallback for any unexpected action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action}"), open=True))

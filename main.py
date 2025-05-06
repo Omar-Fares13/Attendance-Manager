@@ -19,6 +19,7 @@ from views.qr_display_view import create_qr_display_view
 from views.report_course_view import create_report_course_view
 from views.main_screen_view import create_main_screen_view
 from views.manage_colleges_view import create_manage_colleges_view
+from views.upload_course_file_view import create_upload_course_file_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -161,6 +162,10 @@ def main(page: ft.Page):
             page.views.append(create_camera_qr_view(page))
         elif actual_route == "/qr_display":
             page.views.append(create_qr_display_view(page))
+        
+        # File upload
+        elif actual_route == "/course_file_upload":
+            page.views.append(create_upload_course_file_view(page))
 
         # Reporting
         elif actual_route == "/report_course":

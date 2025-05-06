@@ -19,7 +19,8 @@ def create_login_view(page: ft.Page):
         bgcolor=ft.Colors.WHITE,
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18"),
-        content_padding=ft.padding.symmetric(horizontal=15, vertical=15)
+        content_padding=ft.padding.symmetric(horizontal=15, vertical=15),
+        on_submit=do_login
     )
 
     def do_login(e):
