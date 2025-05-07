@@ -102,7 +102,7 @@ def create_qr_search_student_view(page: ft.Page):
                 text="تعديل",
                 bgcolor=ft.colors.ORANGE,
                 color=ft.colors.BLACK,
-                width=40, height=35,
+                width=70, height=35,
                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
                 tooltip=f"Action for {stu.name}",
                 on_click = lambda e : search_data_click(e.control.data)

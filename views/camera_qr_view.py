@@ -364,11 +364,23 @@ def create_camera_qr_view(page: ft.Page):
             print("Error: No frame available.")
             show_snackbar(page, "لا يوجد إطار من الكاميرا للالتقاط.", ft.colors.AMBER_700)
 
+
+
+    def on_keyboard_event(e: ft.KeyboardEvent):
+        # Flet gives you e.key as e.g. "Enter" or " "
+        if e.key in ("Enter", " "):
+            capture_click(e)
+            show_snackbar(page, "📸 تم الالتقاط عن طريق لوحة المفاتيح", ft.colors.GREEN_700)
+
+    
+    page.on_keyboard_event = on_keyboard_event
+
+    
     # --- Buttons ---
     show_qr_btn = ft.ElevatedButton("عرض QR", icon=ft.icons.QR_CODE_2, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#B58B18", color=ft.colors.WHITE, height=40, on_click=show_qr_click)
     retake_photo_btn = ft.ElevatedButton("اعادة الصورة", icon=ft.icons.REFRESH, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#C83737", color=ft.colors.WHITE, height=40, on_click=retake_photo_click)
     return_button_main = ft.ElevatedButton("الرجوع", icon=ft.icons.ARROW_BACK, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#5C544A", color=ft.colors.WHITE, height=45, on_click=go_back)
-    capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
+    capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT,autofocus=True, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
 
     # --- Panel Layouts ---
     left_panel = ft.Container(

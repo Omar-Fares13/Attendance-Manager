@@ -2,29 +2,39 @@ import re
 from io import BytesIO
 import pdfplumber
 
+# For proper Arabic shaping and bidi reordering
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+
 def remove_new_line(name: str) -> str:
-    """Flatten multi-line cell text and restore order."""
-    parts, cur = [], ""
-    for ch in name:
-        if ch == "\n":
-            if cur:
-                parts.append(cur)
-            cur = ""
-        else:
-            cur += ch
-    if cur:
-        parts.append(cur)
-    # parts were collected in visual order bottom→top, so reverse:
-    return " ".join(parts[::-1])
+    """Flatten multi-line cell text."""
+    # Simply remove newlines; we will handle reshaping/reordering later
+    return " ".join(part for part in name.splitlines() if part)
+
+
+def normalize_arabic(text: str) -> str:
+    """
+    Reshape Arabic letters and apply bidi algorithm to convert visual order
+    into correct logical order for storage and search.
+    """
+    # Reshape letters to proper presentation forms
+    reshaped = arabic_reshaper.reshape(text)
+    # Apply bidi algorithm
+    bidi_text = get_display(reshaped)
+    return bidi_text
+
 
 def get_faculty_name(page: pdfplumber.page.Page) -> str:
-    """Extract and reverse the faculty name from the header line."""
-    text = page.extract_text() or ""
-    match = re.search(r"ﺔﻌﻣﺎﺟ\s+(.*?)\s+ﺔﺒﻠﻄﻟ", text)
+    """Extract and normalize the faculty name from the header line."""
+    raw = page.extract_text() or ""
+    match = re.search(r"ﺔﻌﻣﺎﺟ\s+(.*?)\s+ﺔﺒﻠﻄﻟ", raw)
     if not match:
         raise ValueError("Couldn't find faculty pattern on the first page")
-    # reverse the captured group to fix RTL logical→visual
-    return match.group(1)[::-1]
+    name_visual = match.group(1)
+    # Normalize to logical order
+    return normalize_arabic(name_visual)
+
 
 def read_pdf(path: str, is_male: bool = True):
     """
@@ -42,7 +52,9 @@ def read_pdf(path: str, is_male: bool = True):
                     # assume last cell is seq_number if it starts with a digit
                     if row and row[-1] and row[-1][0].isdigit():
                         seq_number = int(row[-1])
-                        name        = remove_new_line(row[-2])[::-1]
+                        # raw name may be visual-order; remove newlines then normalize
+                        raw_name = remove_new_line(row[-2])
+                        name = normalize_arabic(raw_name)
                         national_id = row[-3]
                         students.append({
                             "seq_number": seq_number,
@@ -52,12 +64,11 @@ def read_pdf(path: str, is_male: bool = True):
                             "faculty": faculty_name
                         })
 
+        # sort and dedupe as before
         students.sort(key=lambda x: x["seq_number"])
-
         unique_ids = set()
         duplicates = []
         max_id = 0
-
         for student in students:
             if student['seq_number'] in unique_ids:
                 duplicates.append(student)
@@ -65,18 +76,18 @@ def read_pdf(path: str, is_male: bool = True):
                 unique_ids.add(student['seq_number'])
                 if student['seq_number'] > max_id:
                     max_id = student['seq_number']
-
         clean_students = [s for s in students if s not in duplicates]
-
         new_id = max_id + 1
         for duplicate in duplicates:
             duplicate['seq_number'] = new_id
             clean_students.append(duplicate)
             new_id += 1
 
-        return clean_students, faculty_name
+    return clean_students, faculty_name
+
+
 if __name__ == "__main__":
-    pdf_path = "military_data.pdf"  # make sure this file is in the same folder
+    pdf_path = "military_data.pdf"  # ensure correct path
     students, faculty = read_pdf(pdf_path)
 
     print("Faculty:", faculty)

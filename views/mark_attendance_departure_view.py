@@ -168,7 +168,7 @@ def create_mark_view(page: ft.Page, title_text: str, title_color: str, border_co
                                                      color=ft.colors.BLACK26))
 
     banner_control = create_banner(page.width)
-
+    
     scan_btn = ft.ElevatedButton("ابدأ QR", bgcolor=GOLD_COLOR, color=WHITE_COLOR,
                                 width=200, on_click=lambda e: start_scanning(e.page, scan_btn))
 

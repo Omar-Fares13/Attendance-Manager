@@ -4,8 +4,15 @@ from components.banner import create_banner
 from utils.assets import ft_asset # Only needed if using specific assets later
 from models import Student, Faculty
 from logic.students import get_students, get_student_by_id
+import arabic_reshaper
+from bidi.algorithm import get_display
+
 search_attributes = {}
 
+def normalize_arabic(text: str) -> str:
+    """Reshape and reorder Arabic text for consistent storage/search."""
+    reshaped = arabic_reshaper.reshape(text)
+    return get_display(reshaped)
 
 # --- Helper Function for Search TextFields ---
 def create_search_field(label: str, width: float = None, expand: bool = False, name :str = "", update = None):
@@ -100,7 +107,7 @@ def create_search_student_view(page: ft.Page):
                 text="تعديل",
                 bgcolor=ft.colors.ORANGE,
                 color=ft.colors.BLACK,
-                width=40, height=35,
+                width=70, height=35,
                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
                 tooltip=f"Action for {stu.name}",
                 on_click = lambda e : edit_data_click(e.control.data)
@@ -110,7 +117,7 @@ def create_search_student_view(page: ft.Page):
                 text = 'ملاحظة',
                 bgcolor = ft.colors.BLACK,
                 color = ft.colors.WHITE,
-                width = 50, height = 35,
+                width = 70, height = 35,
                 style = ft.ButtonStyle(shape = ft.RoundedRectangleBorder(radius = 6)),
                 tooltip = f"Action for {stu.name}",
                 on_click = lambda e : note_student(e.control.data)
@@ -139,6 +146,9 @@ def create_search_student_view(page: ft.Page):
         if not value:
             search_attributes.pop(name, None)
         else:
+            # Normalize Arabic fields so search matches storage
+            if name in ("name", "faculty", "qr_code", "national_id"):
+                value = normalize_arabic(value)
             search_attributes[name] = value
         search()
 
