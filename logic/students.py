@@ -29,49 +29,51 @@ def get_student_by_qr_code(qr_code: str) -> Optional[Student]:
         return session.exec(stmt).one_or_none()
 
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
-    with next(get_session()) as session:
-        # Find the current max seq_number for this faculty
-        stmt = (
-            select(Course.id)
-            .where(Course.is_male_type == student_data["is_male"])
-            .order_by(Course.start_date.desc())
-            .limit(1)
-        )
-        course_id = session.exec(stmt).one_or_none()
-        student_data["course_id"] = course_id
-        student_data["is_male"] = student_data["is_male"] == "1"
-        if not 'faculty_id' in student_data:
-            fac_name = student_data['faculty']
-            student_data.pop('faculty', None)
-            cands = get_faculties(fac_name)
-            if not cands or len(cands) == 0:
-                cands = [create_faculty(fac_name)]
-            fac = cands[0]
-            student_data['faculty_id'] = fac.id
-        print(student_data)
+    try:
+        with next(get_session()) as session:
+            # Find the current max seq_number for this faculty
+            stmt = (
+                select(Course.id)
+                .where(Course.is_male_type == student_data["is_male"])
+                .order_by(Course.start_date.desc())
+                .limit(1)
+            )
+            course_id = session.exec(stmt).one_or_none()
+            student_data["course_id"] = course_id
+            student_data["is_male"] = student_data["is_male"] == "1"
+            if not 'faculty_id' in student_data:
+                fac_name = student_data['faculty']
+                student_data.pop('faculty', None)
+                cands = get_faculties(fac_name)
+                if not cands or len(cands) == 0:
+                    cands = [create_faculty(fac_name)]
+                fac = cands[0]
+                student_data['faculty_id'] = fac.id
+            print(student_data)
 
-        stmt = (
-            select(Student.seq_number)
-            .where(Student.faculty_id == student_data["faculty_id"])
-            .where(Student.course_id == course_id)
-            .order_by(Student.seq_number.desc())
-            .limit(1)
-        )
-        seq = session.exec(stmt).one_or_none()
+            stmt = (
+                select(Student.seq_number)
+                .where(Student.faculty_id == student_data["faculty_id"])
+                .where(Student.course_id == course_id)
+                .order_by(Student.seq_number.desc())
+                .limit(1)
+            )
+            seq = session.exec(stmt).one_or_none()
 
-        # Prepare the dict for instantiation
-        data = student_data.copy()
-        data["qr_code"] = str(uuid.uuid4())
-        if not 'seq_number' in data:
-            data["seq_number"] = (int(seq) + 1) if seq is not None else 1
+            # Prepare the dict for instantiation
+            data = student_data.copy()
+            data["qr_code"] = str(uuid.uuid4())
+            if not 'seq_number' in data:
+                data["seq_number"] = (int(seq) + 1) if seq is not None else 1
 
-        # Create and persist the Student
-        student = Student(**data)
-        session.add(student)
-        session.commit()
-        session.refresh(student)
-        return student
-
+            # Create and persist the Student
+            student = Student(**data)
+            session.add(student)
+            session.commit()
+            session.refresh(student)
+            return student
+    except Exception as e:
+        print(e)
 
 def create_student(stu : StudentCreateDTO) -> Student:
     with next(get_session()) as session:
