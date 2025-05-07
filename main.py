@@ -1,6 +1,7 @@
 # main.py
 import flet as ft
 import os
+from db import create_db_and_tables
 
 # --- Import View Creation Functions ---
 # (Make sure all these files exist in your 'views' folder
@@ -234,6 +235,7 @@ def main(page: ft.Page):
 # --- Run the App Entry Point ---
 if __name__ == "__main__":
     # First, check if the assets directory itself exists
+    create_db_and_tables()
     if not os.path.isdir(ASSETS_DIR):
          print(f"ERROR: Assets directory '{ASSETS_DIR}' not found.")
          print("Application cannot start without the assets directory.")

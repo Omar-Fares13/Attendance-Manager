@@ -1,6 +1,8 @@
 import flet as ft
 from logic.qr_scanner import scan_qr_code_continuous
 from logic.students import Student, get_student_by_qr_code
+from logic.attendance import get_attendance_by_student_id,update_attendance, Attendance,create_attendance
+from datetime import date , datetime
 import threading
 import os
 
@@ -32,11 +34,28 @@ IMAGE_FOLDER_PATH = os.path.abspath(IMAGE_FOLDER_PATH)  # normalize to full path
 # --- Placeholder trigger called on each scan ---
 def on_scan_trigger(student: Student):
     """
-    Placeholder function executed on each QR scan.
-    Use this to record attendance/departure later.
+    Triggered on each QR scan. Records arrival or departure once per day.
     """
-    # TODO: implement attendance recording logic here
-    print(f"Scan trigger for student: {student.id}")
+    today = date.today()
+    now = datetime.now().time()
+    # fetch today's attendance records
+    records = get_attendance_by_student_id(student.id)
+    # filter records for today
+    today_records = [r for r in records if r.date == today]
+    if not today_records:
+        # No check-in today: record arrival
+        record = Attendance(student_id=student.id, date=today, arrival_time=now, leave_time=None)
+        create_attendance(record)
+        print(f"Arrival recorded for student {student.id} at {now}")
+    else:
+        rec = today_records[0]
+        if rec.leave_time is None:
+            # Record departure time
+            update_attendance(rec.id, {"leave_time": now})
+            print(f"Departure recorded for student {student.id} at {now}")
+        else:
+            # Already recorded departure
+            print(f"Attendance already completed for student {student.id} today")
 
 # --- Helper to build Student Data Card ---
 def _build_student_data_card(page: ft.Page):

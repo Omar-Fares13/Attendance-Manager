@@ -44,7 +44,7 @@ class Attendance(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     date: date
     arrival_time: time
-    leave_time: time
+    leave_time: Optional[time] = Field(default=None, nullable=True)
 
     student_id: int = Field(foreign_key="student.id")   # ← now points to Student
 
