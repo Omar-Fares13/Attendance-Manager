@@ -28,7 +28,7 @@ def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
     def card_clicked(e):
         action = e.control.data
         print(f"Action card clicked: {action}")
-
+        page.routes.append('/attendance')
         # --- NAVIGATION LOGIC ---
         if action == "manage_students":
             page.go("/manage_students")
@@ -37,9 +37,9 @@ def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         elif action == "mark_departure":    # <<< UPDATED THIS
             page.go("/mark_departure")      # <<< Navigate to departure marking view
         else:
-            # Default placeholder action for any other undefined actions
+            page.routes.pop()
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action} (Navigation Not Defined Yet)"), open=True))
-        # --- END NAVIGATION LOGIC ---
+        
 
     # Return the card Container
     return ft.Container(

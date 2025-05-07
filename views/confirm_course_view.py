@@ -98,6 +98,7 @@ def create_confirm_course_view(page: ft.Page):
         # --- 4. Navigate ---
         # A slight delay might be needed for the user to see the SnackBar before navigation
         # time.sleep(0.5) # Uncomment and adjust if SnackBar disappears too quickly
+        page.routes = []
         page.go("/dashboard") # Navigate to dashboard
         # IMPORTANT: Calling page.go() often implicitly includes a page update.
         # If the snackbar doesn't show reliably, add page.update() BEFORE page.go()
@@ -109,6 +110,7 @@ def create_confirm_course_view(page: ft.Page):
         page.client_storage.remove("pending_course_name")
         page.client_storage.remove("pending_course_date")
         # page.client_storage.remove("pending_file_path") # Clear path if you stored it
+        page.routes = []
         page.go("/dashboard")
 
     # --- UI Controls ---

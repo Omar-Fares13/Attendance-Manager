@@ -15,6 +15,7 @@ TITLE_COLOR = "#9A7B4F" # Darker gold/brown for title
 BUTTON_COLOR = "#8BC34A" # Brighter Green color for button like image
 BUTTON_TEXT_COLOR = ft.colors.WHITE
 
+course_lookup = {}
 # --- Placeholder Functions ---
 # It's better practice to access controls via references instead of deep indexing
 # We'll create references in the create_report_course_view function
@@ -33,20 +34,24 @@ def submit_report_request(e: ft.ControlEvent):
 
     # Access controls using the references stored in the view's data attribute
     controls_dict = view.data
-    course_date = controls_dict["course_date"].value
+    course_id = controls_dict["course_id"].value
     college = controls_dict["college"].value
-    gender = controls_dict["gender"].value
     student_name = controls_dict["student_name"].value
 
     print("Submit Report Request Clicked!")
-    print(f"  Course Date: {course_date}")
+    print(f"  Course ID: {course_id}")
     print(f"  College: {college}")
-    print(f"  Gender: {gender}")
     print(f"  Student Name: {student_name}")
 
     # Add logic here to generate/fetch the report based on selections
-    page.show_snack_bar(ft.SnackBar(ft.Text("جاري استخراج التقرير... (منطق لم يطبق بعد)", text_align=ft.TextAlign.RIGHT), open=True)) # Added text align
-
+    page.course_id = course_id
+    if college:
+        page.faculty_id = int(college)
+    else:
+        page.faculty_id = None
+    page.student_name = student_name
+    page.course_name = course_lookup[course_id]
+    page.go('/report')
 def go_back_to_dashboard(e: ft.ControlEvent):
     """Navigates back to the dashboard."""
     e.page.go("/dashboard")
@@ -77,6 +82,8 @@ def create_report_course_view(page: ft.Page):
     # first, fetch all courses (e.g. sorted however you like)
     courses = get_all_courses()
 
+    for course in courses:
+        course_lookup[course.id] = course_title(course)
     # then build a Dropdown instead of a TextField:
     course_dropdown = ft.Dropdown(
         hint_text="تاريخ الدورة",           # your placeholder
@@ -92,7 +99,7 @@ def create_report_course_view(page: ft.Page):
         # optionally pre‑select the first one (or leave as None)
         value=courses[0].id if courses else None,
     )
-
+    faculties = get_all_faculties()
     college_dropdown = ft.Dropdown(
         hint_text="الكلية (اختياري)", # Use hint_text
         border_color=FORM_BORDER_COLOR,
@@ -100,24 +107,7 @@ def create_report_course_view(page: ft.Page):
         bgcolor=FIELD_BGCOLOR,
         # text_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for selected item (might not work perfectly cross-platform)
         # hint_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for hint (might not work perfectly cross-platform)
-        options=[
-            # Add ft.dropdown.Option(...) objects here later
-            ft.dropdown.Option("c1", "كلية الهندسة"), # Example
-            ft.dropdown.Option("c2", "كلية التجارة"), # Example
-        ],
-    )
-
-    gender_dropdown = ft.Dropdown(
-        hint_text="ذكور او اناث", # Use hint_text
-        border_color=FORM_BORDER_COLOR,
-        border_radius=FIELD_BORDER_RADIUS,
-        bgcolor=FIELD_BGCOLOR,
-        # text_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT),
-        # hint_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT),
-        options=[
-            ft.dropdown.Option("male", "ذكور"),
-            ft.dropdown.Option("female", "اناث"),
-        ],
+        options=[ft.dropdown.Option(text = f.name, key = f.id) for f in faculties],
     )
 
     student_name_field = ft.TextField(
@@ -130,9 +120,8 @@ def create_report_course_view(page: ft.Page):
 
     # Store controls for easier access in submit function
     controls_dict = {
-        "course_date": course_date_field,
+        "course_id": course_dropdown,
         "college": college_dropdown,
-        "gender": gender_dropdown,
         "student_name": student_name_field,
     }
 
@@ -145,10 +134,9 @@ def create_report_course_view(page: ft.Page):
         width=450, # Adjust width as needed
         content=ft.Column(
             [
-                course_date_field,
+                course_dropdown,
                 college_dropdown,
-                gender_dropdown,
-                student_name_field,
+                student_name_field
             ],
             spacing=FIELD_SPACING,
             # horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Let controls fill width

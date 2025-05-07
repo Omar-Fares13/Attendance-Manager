@@ -2,7 +2,8 @@
 
 import flet as ft
 from logic.students import create_students_from_file
-from components.banner import create_banner # Assuming banner component is reusable
+from components.banner import create_banner 
+from logic.file_write import get_student_data, create_excel
 # --- Define Colors & Fonts (copy from other views for consistency) ---
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18" # Gold/Brown
@@ -21,41 +22,28 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 attribs = {}
 
 # --- Helper to create styled TextField for cells ---
-def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
+def create_uneditable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells and assigns a Ref."""
-    return ft.TextField(
-        ref=ref, # Assign the passed Ref object
-        value=value,
-        text_align=ft.TextAlign.RIGHT,
-        # Styling to make it look like part of the table cell
-        border=ft.InputBorder.NONE, # No border
-        filled=True,
-        bgcolor=ft.colors.TRANSPARENT, # Let the cell background show through
-        content_padding=ft.padding.symmetric(horizontal=10, vertical=8), # Adjust padding
-        text_size=14,
-        expand=True, # Take available space in cell
-        cursor_color=PRIMARY_COLOR, # Themed cursor
-        height=40, # Ensure a minimum height for consistency
-        text_vertical_align=ft.VerticalAlignment.CENTER,
+    return ft.Text(
+    value = value,
+    text_align=ft.TextAlign.RIGHT,
+    size=14,
+    font_family=FONT_FAMILY_REGULAR,
+    overflow=ft.TextOverflow.ELLIPSIS,
+    no_wrap=True
     )
 
-def create_edit_course_data_view(page: ft.Page):
+def create_report_view(page: ft.Page):
     """Creates the Flet View for editing extracted course data."""
 
-    print("[Edit View] Loading data...")
     # --- Retrieve Data Stored from Previous Step (or use defaults) ---
-    headers = ["الاسم", "الرقم المتسلسل", "الرقم القومي", "الكلية"]
-    attribs['is_male'] = (page.file_students)['students'][0]['is_male']
-    attribs['date'] = page.file_students['date']
-    data_rows = [[std['name'], std['seq_number'], std['national_id'], std['faculty']] for std in (page.file_students)['students']]
-    course_file_name = page.client_storage.get("pending_course_name") or "ملف غير محدد"
-
-    # --- Create refs for all TextFields ---
-    # This creates a 2D list of Refs, matching the structure of data_rows
+    headers = ["الاسم", "الرقم المسلسل", "الرقم القومي", "الكلية", "انذارات", "حضور", "لم يحضر", "ملاحظات", "الحالة"]
+    
+    print((page.course_id, page.faculty_id, page.student_name))
+    data_rows = get_student_data(page.course_id, page.faculty_id, page.student_name)
     text_field_refs = [
         [ft.Ref[ft.TextField]() for _ in range(len(headers))] for _ in range(len(data_rows))
     ]
-
 
     # --- Event Handlers ---
     def go_back(e):
@@ -65,33 +53,14 @@ def create_edit_course_data_view(page: ft.Page):
         # page.client_storage.remove("pending_course_data")
         # page.client_storage.remove("pending_course_name")
         # page.client_storage.remove("pending_course_date") # Also clear date if set
-        page.routes = ['/dashboard']
-        page.go("/register_course_options")
+        page.go("/report_course")
+    
+    def extract_pdf(e):
+        print("pdf")
+    def extract_xlsx(e):
+        create_excel(headers, data_rows, page.course_name)
 
-    def proceed_to_confirmation(e):
-        print("[Edit View] Proceeding to confirmation.")
-        # --- 1. Read data from TextFields ---
-        updated_data = []
-        for r_idx, row_refs in enumerate(text_field_refs):
-            current_row_data = []
-            for c_idx, tf_ref in enumerate(row_refs):
-                if tf_ref.current:
-                    # Get value, strip whitespace, default to empty string if None
-                    value = tf_ref.current.value or ""
-                    try:
-                        value = value.strip()
-                    except:
-                        value = value
-                    current_row_data.append(value)
-            std = {'name' : current_row_data[0], 'seq_number' : current_row_data[1], 'national_id' : current_row_data[2], 'faculty' : current_row_data[3], 'is_male' : attribs['is_male']}
-            
-            updated_data.append(std)
-        create_students_from_file(updated_data, attribs['date'], attribs['is_male'])
-        # --- 3. Navigate ---
-        page.routes = []
-        page.go("/dashboard")
-
-
+        
     # --- UI Controls ---
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # RTL back arrow
@@ -102,34 +71,10 @@ def create_edit_course_data_view(page: ft.Page):
     )
 
     title = ft.Text(
-        "تسجيل دورة جديدة",
+        "تقرير",
         size=32, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR,
         font_family=FONT_FAMILY_BOLD, text_align=ft.TextAlign.CENTER
     )
-    subtitle = ft.Text(
-        f"تعديل الملف المرفوع: {course_file_name}", # Show the source file name being edited
-        size=20, weight=ft.FontWeight.W_500, color=TEXT_COLOR_DARK,
-        font_family=FONT_FAMILY_REGULAR, text_align=ft.TextAlign.CENTER
-    )
-
-    instruction_text = ft.Row(
-        [
-            ft.Text(
-                # Shortened instruction for clarity
-                "يرجى التأكد من تطابق عناوين الأعمدة مع النموذج المطلوب ومراجعة البيانات قبل المتابعة.",
-                size=14, color=TEXT_COLOR_DARK, font_family=FONT_FAMILY_REGULAR,
-                text_align=ft.TextAlign.RIGHT, expand=True
-            ),
-            ft.Icon(ft.icons.VISIBILITY_OUTLINED, color=PRIMARY_COLOR, size=24),
-        ],
-        alignment=ft.MainAxisAlignment.END,
-        spacing=10,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        # Limit width and add padding
-        width=800, # Adjust as needed
-        # padding=ft.padding.symmetric(horizontal=50) # Add padding if needed
-    )
-
     # --- Create DataTable Columns ---
     dt_columns = []
     for header_text in headers:
@@ -171,7 +116,7 @@ def create_edit_course_data_view(page: ft.Page):
                 tf_ref = text_field_refs[r_idx][c_idx]
                 dt_cells.append(
                     ft.DataCell(
-                        create_editable_cell(cell_value, tf_ref),
+                        create_uneditable_cell(cell_value, tf_ref),
                         # tap_handler=lambda e: print(f"Cell ({r_idx},{c_idx}) tapped"), # Optional: Handle tap
                     )
                 )
@@ -202,14 +147,25 @@ def create_edit_course_data_view(page: ft.Page):
     )
 
     # --- Confirmation Button ---
-    confirm_button = ft.ElevatedButton(
-        text="تأكيد ومتابعة",
+    pdf_button = ft.ElevatedButton(
+        text="استخراج ملف PDF",
         icon=ft.icons.CHECK_CIRCLE_OUTLINE,
         bgcolor=BUTTON_CONFIRM_COLOR,
         color=BUTTON_TEXT_COLOR,
         height=50,
         width=220, # Wider button
-        on_click=proceed_to_confirmation,
+        on_click=extract_pdf,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+    )
+
+    excel_button = ft.ElevatedButton(
+        text="استخراج ملف Excel",
+        icon=ft.icons.CHECK_CIRCLE_OUTLINE,
+        bgcolor=BUTTON_CONFIRM_COLOR,
+        color=BUTTON_TEXT_COLOR,
+        height=50,
+        width=220, # Wider button
+        on_click=extract_xlsx,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
     )
 
@@ -226,12 +182,6 @@ def create_edit_course_data_view(page: ft.Page):
              ),
              ft.Container(height=5),
              title,
-             ft.Container(height=5),
-             subtitle,
-             ft.Container(height=20),
-             instruction_text,
-             ft.Container(height=20),
-
              # DataTable needs horizontal scrolling capability
              ft.Row(
                  [
@@ -249,7 +199,7 @@ def create_edit_course_data_view(page: ft.Page):
 
              # Confirmation Button centered at bottom
              ft.Row(
-                 [confirm_button],
+                 [excel_button],
                  alignment=ft.MainAxisAlignment.CENTER
              ),
 
@@ -262,7 +212,7 @@ def create_edit_course_data_view(page: ft.Page):
 
     # --- View Definition ---
     return ft.View(
-        route="/edit_course_data", # Route for this view
+        route="/report", # Route for this view
         bgcolor=BG_COLOR,
         padding=0,
         controls=[
