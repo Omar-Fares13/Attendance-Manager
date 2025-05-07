@@ -9,7 +9,7 @@ import threading
 import time
 import numpy as np
 from logic.students import get_student_by_id
-
+from logic.qr_generator import generate_qr_code
 student_id = 1
 
 # --- Asset and Banner Imports (Keep your original logic) ---
@@ -242,22 +242,78 @@ def create_camera_qr_view(page: ft.Page):
 
     # --- Button Click Handlers ---
     def show_qr_click(e):
-        print("Show QR Clicked - Opening QR Popup")
+        # 1) Generate in-memory QR
+        buf = generate_qr_code(student_data.qr_code)
+        data = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+        img  = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        if img is None:
+            print("Failed to decode QR image")
+            return
 
-        qr_image = ft.Image(src="C:\Work Space\Military Project\Attendance Manager\captured_images\2625a547-67ac-4faa-8ae4-7702b8ef72d1.jpg", width=200, height=200)
+        # 2) Launch daemon thread, passing img + student name
+        threading.Thread(
+            target=_show_qr_window,
+            args=(img, student_data.national_id),
+            daemon=True
+        ).start()
 
-        qr_dialog = ft.AlertDialog(
-            title=ft.Text("Your QR Code"),
-            content=qr_image,
-            actions=[ft.TextButton("Close", on_click=lambda e: qr_dialog.close())],
-            actions_alignment=ft.MainAxisAlignment.END,
+
+    def _show_qr_window(img, student_info):
+        """
+        Runs on a background thread:
+        - Upscales the QR image
+        - Adds a text area below
+        - Displays student name + instruction
+        - Waits for any key to close
+        """
+        # 1) Enlarge the image (2×)
+        scale = 1
+        h, w = img.shape[:2]
+        img_large = cv2.resize(img, (w * scale, h * scale), interpolation=cv2.INTER_NEAREST)
+
+        # 2) Prepare the text
+        text = f"{student_info} - Press any key to close"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1
+        thickness = 2
+        (text_w, text_h), _ = cv2.getTextSize(text, font, font_scale, thickness)
+
+        # 3) Create a white padded canvas below the image
+        padding = 10
+        canvas_h = img_large.shape[0] + text_h + padding * 3
+        canvas_w = max(img_large.shape[1] + padding * 2, text_w + padding * 2)
+        canvas = np.full((canvas_h, canvas_w, 3), 255, dtype=np.uint8)
+
+        # 4) Center the QR on the canvas
+        x_offset = (canvas_w - img_large.shape[1]) // 2
+        y_offset = padding
+        canvas[y_offset:y_offset + img_large.shape[0],
+            x_offset:x_offset + img_large.shape[1]] = img_large
+
+        # 5) Put the text centered below
+        text_x = (canvas_w - text_w) // 2
+        text_y = img_large.shape[0] + padding * 2 + text_h
+        cv2.putText(
+            canvas,
+            text,
+            (text_x, text_y),
+            font,
+            font_scale,
+            (0, 0, 0),        # black text
+            thickness,
+            cv2.LINE_AA
         )
 
-        page.dialog = qr_dialog
-        qr_dialog.open = True
-        qr_dialog.update()   # Required to show
-        page.update() 
+        # 6) Show in its own window until any key is pressed
+        window_name = f"QR Code - {student_info}"
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        while True:
+            cv2.imshow(window_name, canvas)
+            if cv2.waitKey(100) >= 0:
+                break
+        cv2.destroyWindow(window_name)
 
+        
     def retake_photo_click(e):
         print("Retake Photo Clicked")
         if not camera_thread or not camera_thread.is_alive():

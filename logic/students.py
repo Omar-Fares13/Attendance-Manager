@@ -1,10 +1,9 @@
 # student_crud.py
 from sqlmodel import Session, select
-from sqlalchemy.orm import joinedload
 from typing import List, Optional
 from models import Student, Faculty, Course, Note
 from db import get_session
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 from DTOs.StudentCreateDTO import StudentCreateDTO
 import uuid
 from sqlalchemy import func
@@ -12,6 +11,22 @@ from logic.faculties import create_faculty
 from logic.course import create_course
 from logic.faculties import get_faculties, create_faculty
 # Create
+
+def get_student_by_qr_code(qr_code: str) -> Optional[Student]:
+    """
+    Fetch a single Student (with its Faculty) by its QR code string.
+    Returns None if no matching student is found.
+    """
+    with next(get_session()) as session:
+        stmt = (
+            select(Student)
+            .options(
+                joinedload(Student.faculty),    # single-valued join is fine
+                selectinload(Student.notes)      # load notes in separate query, no row duplication
+            )
+            .where(Student.qr_code == qr_code)
+        )
+        return session.exec(stmt).one_or_none()
 
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
     with next(get_session()) as session:

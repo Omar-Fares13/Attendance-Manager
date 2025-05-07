@@ -1,315 +1,194 @@
-# views/mark_attendance_departure_view.py
 import flet as ft
+from logic.qr_scanner import scan_qr_code_continuous
+from logic.students import Student, get_student_by_qr_code
+import threading
+import os
+
 # Ensure create_banner is correctly imported
 try:
     from components.banner import create_banner
 except ImportError:
     print("Warning: components.banner not found. Using placeholder.")
-    def create_banner(width): # Mock function if import fails
+    def create_banner(width):
         return ft.Container(height=80, bgcolor="#5C5341", content=ft.Text("Mock Banner", color=ft.colors.WHITE))
 
 # --- Constants ---
 PAGE_BGCOLOR = "#E3DCCC"
 GOLD_COLOR = "#B58B18"
-GREEN_COLOR = "#6FA03C" # Attendance Green
-RED_COLOR = "#C83737"  # Departure Red
-GREY_COLOR = "#888888"  # Notes Button Grey
+GREEN_COLOR = "#6FA03C"  # Attendance Green
+RED_COLOR = "#C83737"   # Departure Red
 WHITE_COLOR = ft.colors.WHITE
 CARD_BORDER_RADIUS = 15
 BUTTON_BORDER_RADIUS = 8
 PROFILE_PIC_SIZE = 150
-# Make sure these image paths are correct relative to your assets directory
-PLACEHOLDER_IMAGE_SRC = "images/placeholder_canva.png" # Path relative to assets dir
-PROFILE_IMAGE_SRC = "images/profile_placeholder.png"  # Path relative to assets dir
 
-# --- Button Action Functions ---
-# Placeholder action for the 'Warning' button
-def show_warning(e: ft.ControlEvent):
-    print("Warning button clicked!")
-    e.page.show_snack_bar(ft.SnackBar(ft.Text("زر الإنذار - لم يتم التنفيذ بعد", text_align=ft.TextAlign.RIGHT), open=True))
+PLACEHOLDER_IMAGE_SRC = "images/placeholder_canva.png"
+PROFILE_IMAGE_SRC = "images/profile_placeholder.png"
 
-# Navigation action for the 'Note' button
-def navigate_to_add_note(e: ft.ControlEvent):
-    # TODO: Pass student ID or relevant data if needed for the note page
-    # student_id = get_student_id_somehow() # Replace with actual logic to get ID
-    # e.page.go(f"/add_note?student_id={student_id}") # Example with query param
-    print("Note button clicked, navigating to /add_note")
-    e.page.go("/add_note")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_FOLDER_PATH = os.path.join(SCRIPT_DIR, "..", "captured_images")  # navigate up one level, then to captured_images
+IMAGE_FOLDER_PATH = os.path.abspath(IMAGE_FOLDER_PATH)  # normalize to full path
 
-# Placeholder action for the 'Accept' button (Attendance/Departure)
-def accept_action(e: ft.ControlEvent):
-    action_type = e.control.data # 'attendance' or 'departure' stored in button data
-    print(f"Accept button clicked for: {action_type}")
-    e.page.show_snack_bar(ft.SnackBar(ft.Text(f"زر القبول ({action_type}) - لم يتم التنفيذ بعد", text_align=ft.TextAlign.RIGHT), open=True))
-    # TODO: Add logic here to record attendance/departure using student ID, timestamp etc.
+# --- Placeholder trigger called on each scan ---
+def on_scan_trigger(student: Student):
+    """
+    Placeholder function executed on each QR scan.
+    Use this to record attendance/departure later.
+    """
+    # TODO: implement attendance recording logic here
+    print(f"Scan trigger for student: {student.id}")
 
 # --- Helper to build Student Data Card ---
-def _build_student_data_card(page: ft.Page, action_type: str):
-    """Builds the left-side student data card."""
-
-    # Inner function to create formatted data rows
-    def create_data_row(label, value):
+def _build_student_data_card(page: ft.Page):
+    page.student_controls = {}
+    def create_data_row(label, key):
+        txt = ft.Text("-", text_align=ft.TextAlign.RIGHT, expand=True, weight=ft.FontWeight.W_500)
+        page.student_controls[key] = txt
         return ft.Row(
             [
-                # Ensure data fields handle potential None values gracefully if needed
-                ft.Text(value if value is not None else "-", text_align=ft.TextAlign.RIGHT, expand=True, weight=ft.FontWeight.W_500),
-                ft.Text(f":{label}", text_align=ft.TextAlign.RIGHT, color=GOLD_COLOR, weight=ft.FontWeight.BOLD, width=100, no_wrap=True), # Added fixed width for labels
+                txt,
+                ft.Text(f":{label}", text_align=ft.TextAlign.RIGHT, color=GOLD_COLOR, weight=ft.FontWeight.BOLD, width=100, no_wrap=True),
             ],
             alignment=ft.MainAxisAlignment.END,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            # spacing=5
         )
 
-    # The main container for the student data card
     return ft.Container(
-        padding=ft.padding.all(15), # Adjusted padding
+        padding=ft.padding.all(15),
         border=ft.border.all(2, GOLD_COLOR),
         border_radius=CARD_BORDER_RADIUS,
         bgcolor=WHITE_COLOR,
-        width=400, # Fixed width for the card
+        width=400,
         content=ft.Column(
             [
-                ft.Text(
-                    "بيانات الطالب",
-                    text_align=ft.TextAlign.CENTER,
-                    weight=ft.FontWeight.BOLD,
-                    size=20,
-                    color=GOLD_COLOR
-                ),
-                ft.Divider(height=10, color=ft.colors.TRANSPARENT), # Spacer
-
-                # --- Replace with actual dynamic data ---
-                # TODO: Pass student data as an argument to this function
-                create_data_row("الاسم", "محمد محمد محمد"),
-                create_data_row("ID الطالب", "123456"),
-                create_data_row("الرقم القومي", "12345678901234"),
-                create_data_row("الكلية", "الهندسة"),
-                create_data_row("مسلسل", "123"),
-                create_data_row("ملاحظات", "واحد اثنان ثلاثة اربعة خمسة ستة سبعة ثمانية"), # Display existing notes
-                # --- End Dynamic Data Section ---
-
-                ft.Divider(height=15, color=ft.colors.TRANSPARENT), # Spacer before buttons
-
-                # Row containing the action buttons
-                ft.Row(
-                    [
-                         # Swapped order to match image (قبول, ملاحظة, انذار from right to left)
-                          ft.ElevatedButton(
-                            "انذار", # Warning button
-                            bgcolor=RED_COLOR,
-                            color=WHITE_COLOR,
-                            width=100, height=40,
-                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=BUTTON_BORDER_RADIUS)),
-                            on_click=show_warning # Calls the warning placeholder
-                        ),
-                         ft.ElevatedButton(
-                            "ملاحظة", # Note button
-                            bgcolor=GREY_COLOR,
-                            color=WHITE_COLOR,
-                            width=100, height=40,
-                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=BUTTON_BORDER_RADIUS)),
-                            on_click=navigate_to_add_note # <<< UPDATED: Calls the navigation function
-                        ),
-                        ft.ElevatedButton(
-                            "قبول", # Accept button (Attendance/Departure)
-                            bgcolor=GOLD_COLOR,
-                            color=WHITE_COLOR,
-                            width=100, height=40,
-                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=BUTTON_BORDER_RADIUS)),
-                            on_click=accept_action, # Calls the accept placeholder
-                            data=action_type # Pass 'attendance' or 'departure' to handler
-                        ),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_EVENLY, # Distribute buttons evenly
-                )
+                ft.Text("بيانات الطالب", text_align=ft.TextAlign.CENTER, weight=ft.FontWeight.BOLD, size=20, color=GOLD_COLOR),
+                ft.Divider(height=10, color=ft.colors.TRANSPARENT),
+                create_data_row("الاسم",        "name"),
+                create_data_row("ID الطالب",   "id"),
+                create_data_row("الرقم القومي", "national_id"),
+                create_data_row("الكلية",      "faculty"),
+                create_data_row("مسلسل",       "seq_number"),
+                create_data_row("ملاحظات",     "notes"),
             ],
-            # Column alignment for the card content
             alignment=ft.MainAxisAlignment.START,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=8 # Spacing between elements in the column
+            spacing=8
         )
     )
 
 # --- Helper to build Image Placeholder ---
 def _build_image_placeholder(page: ft.Page, border_color: str):
-    """Builds the right-side image placeholder."""
+    # create image control and store reference
+    img = ft.Image(
+        src=PLACEHOLDER_IMAGE_SRC,
+        fit=ft.ImageFit.CONTAIN,
+        border_radius=ft.border_radius.all(CARD_BORDER_RADIUS - 5),
+        error_content=ft.Column([
+            ft.Icon(ft.icons.CAMERA_ALT_OUTLINED, size=50, color=ft.colors.BLACK26),
+            ft.Text("لا يمكن تحميل الصورة", color=ft.colors.BLACK26)
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, opacity=0.8)
+    )
+    page.student_image = img
     return ft.Container(
-        width=350, # Fixed width
-        height=350, # Fixed height
-        border=ft.border.all(4, border_color), # Border color depends on view (green/red)
+        width=350,
+        height=350,
+        border=ft.border.all(4, border_color),
         border_radius=CARD_BORDER_RADIUS,
         bgcolor=WHITE_COLOR,
-        padding=10, # Padding inside the border
-        alignment=ft.alignment.center, # Center the image within the container
-        content=ft.Image(
-            src=PLACEHOLDER_IMAGE_SRC, # Path to the placeholder image
-            fit=ft.ImageFit.CONTAIN, # Fit image within bounds
-            border_radius=ft.border_radius.all(CARD_BORDER_RADIUS - 5), # Inner radius for image
-            # Error content if the image fails to load
-            error_content=ft.Column(
-                [
-                    ft.Icon(ft.icons.CAMERA_ALT_OUTLINED, size=50, color=ft.colors.BLACK26),
-                    ft.Text("لا يمكن تحميل الصورة", color=ft.colors.BLACK26)
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                alignment=ft.MainAxisAlignment.CENTER,
-                opacity=0.8
-            )
-        )
+        padding=10,
+        alignment=ft.alignment.center,
+        content=img
     )
+
+# --- QR Scanning Logic ---
+def start_scanning(page: ft.Page, scan_btn: ft.ElevatedButton):
+    scan_btn.disabled = True
+    page.update()
+
+    def on_detect(qr_code_value):
+        student = get_student_by_qr_code(qr_code_value)
+        if not student:
+            page.show_snack_bar(ft.SnackBar(ft.Text("لم يتم العثور على الطالب!"), bgcolor=ft.colors.RED_700, open=True))
+            return
+
+        # Populate fields
+        sc = page.student_controls
+        sc["name"].value        = student.name
+        sc["id"].value          = str(student.id)
+        sc["national_id"].value = student.national_id
+        sc["faculty"].value     = student.faculty.name
+        sc["seq_number"].value  = str(student.seq_number)
+        sc["notes"].value       = student.notes or "-"
+
+        # Update image to qr_code.jpg
+        page.student_image.src = f"{IMAGE_FOLDER_PATH}/{qr_code_value}.jpg"
+
+        # Trigger placeholder for recording attendance
+        on_scan_trigger(student)
+
+        page.update()
+
+    threading.Thread(target=scan_qr_code_continuous, args=(on_detect,), daemon=True).start()
 
 # --- Reusable View Creation Function ---
-def create_mark_view(page: ft.Page, title_text: str, title_color: str, border_color: str, route: str, action_type: str):
-    """Creates the base view for Attendance or Departure marking."""
-
-    # --- Back Button Logic ---
+def create_mark_view(page: ft.Page, title_text: str, title_color: str, border_color: str, route: str):
     def go_back(e: ft.ControlEvent):
-        # Navigates back to the attendance selection screen
-        print("Back button clicked, navigating to /attendance")
         page.go("/attendance")
 
-    back_button = ft.IconButton(
-        icon=ft.icons.ARROW_FORWARD_OUTLINED, # RTL back arrow
-        icon_color=GOLD_COLOR,
-        tooltip="العودة",
-        on_click=go_back,
-        icon_size=30
-    )
+    back_button = ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color=GOLD_COLOR,
+                                tooltip="العودة", on_click=go_back, icon_size=30)
 
-    # --- Page Title ---
-    page_title = ft.Text(
-        title_text, # "حضور" or "انصراف"
-        size=36,
-        weight=ft.FontWeight.BOLD,
-        color=title_color, # Green or Red
-        text_align=ft.TextAlign.CENTER
-    )
+    page_title = ft.Text(title_text, size=36, weight=ft.FontWeight.BOLD,
+                         color=title_color, text_align=ft.TextAlign.CENTER)
 
-    # --- Profile Picture ---
-    profile_picture = ft.Image(
-        src=PROFILE_IMAGE_SRC, # Path to profile placeholder
-        width=PROFILE_PIC_SIZE,
-        height=PROFILE_PIC_SIZE,
-        fit=ft.ImageFit.COVER, # Cover the area
-        border_radius=ft.border_radius.all(PROFILE_PIC_SIZE / 2), # Make it circular
-        # Error content if the image fails to load
-        error_content=ft.Icon(ft.icons.PERSON_OUTLINE, size=PROFILE_PIC_SIZE * 0.6, color=ft.colors.BLACK26)
-    )
+    profile_picture = ft.Image(src=PROFILE_IMAGE_SRC, width=PROFILE_PIC_SIZE,
+                               height=PROFILE_PIC_SIZE, fit=ft.ImageFit.COVER,
+                               border_radius=ft.border_radius.all(PROFILE_PIC_SIZE/2),
+                               error_content=ft.Icon(ft.icons.PERSON_OUTLINE,
+                                                     size=PROFILE_PIC_SIZE*0.6,
+                                                     color=ft.colors.BLACK26))
 
-    # --- Get Banner ---
-    banner_control = create_banner(page.width) # Assumes create_banner is available
+    banner_control = create_banner(page.width)
 
-    # --- Main Content Layout (Row containing left and right sections) ---
-    main_content = ft.Row(
-        [
-            # --- Left Section (Profile Pic + Data Card) ---
-            ft.Column(
-                [
-                    profile_picture,
-                    ft.Container(height=20), # Spacer
-                    # Build the student data card, passing page and action type
-                    _build_student_data_card(page, action_type)
-                ],
-                # Column alignment
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                alignment=ft.MainAxisAlignment.START,
-                spacing=0
-            ),
+    scan_btn = ft.ElevatedButton("ابدأ QR", bgcolor=GOLD_COLOR, color=WHITE_COLOR,
+                                width=200, on_click=lambda e: start_scanning(e.page, scan_btn))
 
-            # --- Right Section (Image Placeholder) ---
-            # Build the image placeholder, passing page and border color
-            _build_image_placeholder(page, border_color)
-        ],
-        # Row alignment
-        vertical_alignment=ft.CrossAxisAlignment.START, # Align items to the top
-        alignment=ft.MainAxisAlignment.CENTER, # Center the two main columns horizontally
-        spacing=50, # Space between the left and right columns
-        wrap=False # Prevent wrapping
-    )
+    main_content = ft.Row([
+        ft.Column([profile_picture, ft.Container(height=20), _build_student_data_card(page)],
+                  horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                  alignment=ft.MainAxisAlignment.START),
+        ft.Column([_build_image_placeholder(page, border_color), ft.Container(height=15), scan_btn],
+                  alignment=ft.MainAxisAlignment.CENTER,
+                  horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    ], vertical_alignment=ft.CrossAxisAlignment.START,
+       alignment=ft.MainAxisAlignment.CENTER, spacing=50)
 
-    # --- Column for Page Content (below banner) ---
-    content_column = ft.Column(
-        [
-           # Row for the back button (aligned left)
-           ft.Container(
-                content=ft.Row(
-                    [back_button],
-                    alignment=ft.MainAxisAlignment.START
-               ),
-               padding=ft.padding.only(left=10) # Padding for back button row
-           ),
-           ft.Container(height=5), # Small spacer
-           page_title, # Page title (centered by the column's alignment)
-           ft.Container(height=20), # Spacer
-           main_content, # The main Row containing the card and image placeholder
-        ],
-        # Column alignment and behavior
-        expand=True, # Allow column to expand
-        scroll=ft.ScrollMode.ADAPTIVE, # Enable scrolling if needed
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Center items like title and main_content row
-    )
+    content_column = ft.Column([
+        ft.Container(content=ft.Row([back_button]), padding=ft.padding.only(left=10)),
+        ft.Container(height=5), page_title, ft.Container(height=20), main_content
+    ], expand=True, scroll=ft.ScrollMode.ADAPTIVE, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-
-    # --- View Definition ---
-    return ft.View(
-        route=route, # Route for this view (/mark_attendance or /mark_departure)
-        padding=0, # No padding on the view itself
-        bgcolor=PAGE_BGCOLOR, # Background color
-        controls=[
-            # Main column structure: Banner + Content Area
-            ft.Column(
-                [
-                    banner_control,
-                    # Container to hold the content column and apply padding
-                    ft.Container(
-                        content=content_column,
-                        padding=ft.padding.symmetric(horizontal=20, vertical=10), # Padding around content
-                        expand=True, # Allow content container to expand
-                        alignment=ft.alignment.top_center # Align content towards the top center
-                    )
-                ],
-                expand=True, # Make the main column fill the page height
-                spacing=0 # No space between banner and content container
-            )
-        ]
-    )
+    return ft.View(route=route, padding=0, bgcolor=PAGE_BGCOLOR,
+                   controls=[ft.Column([banner_control,
+                                        ft.Container(content=content_column,
+                                                     padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                                     expand=True,
+                                                     alignment=ft.alignment.top_center)],
+                                       expand=True,
+                                       spacing=0)])
 
 # --- Specific View Creation Functions ---
 def create_attendance_mark_view(page: ft.Page):
-    """Creates the 'حضور' (Attendance) view."""
-    print(f"Creating Attendance Mark View for page: {id(page)}")
-    # Calls the reusable function with specific parameters for Attendance
-    return create_mark_view(
-        page=page,
-        title_text="حضــور",
-        title_color=GREEN_COLOR,
-        border_color=GREEN_COLOR,
-        route="/mark_attendance",
-        action_type="attendance" # Pass 'attendance' for the accept button data
-    )
+    return create_mark_view(page, "حضــور", GREEN_COLOR, GREEN_COLOR, "/mark_attendance")
 
 def create_departure_mark_view(page: ft.Page):
-    """Creates the 'انصراف' (Departure) view."""
-    print(f"Creating Departure Mark View for page: {id(page)}")
-    # Calls the reusable function with specific parameters for Departure
-    return create_mark_view(
-        page=page,
-        title_text="انصـراف",
-        title_color=RED_COLOR,
-        border_color=RED_COLOR,
-        route="/mark_departure",
-        action_type="departure" # Pass 'departure' for the accept button data
-    )
+    return create_mark_view(page, "انصـراف", RED_COLOR, RED_COLOR, "/mark_departure")
 
-# --- Example Usage (if running this file directly for testing) ---
+# --- Entry Point for Testing ---
 if __name__ == "__main__":
-
-    # (Include the mock banner, assets check, dummy file creation from previous example if needed)
     import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
     assets_dir = os.path.abspath(os.path.join(current_dir, '..', 'assets'))
-    # (Add dummy file creation logic here if needed)
-
 
     def main(page: ft.Page):
         page.title = "Mark Attendance/Departure Test"
@@ -318,86 +197,36 @@ if __name__ == "__main__":
         page.window_height = 850
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-        # Ensure fonts support Arabic - using Cairo as example
-        page.fonts = { "Cairo": "https://github.com/google/fonts/raw/main/apache/cairo/Cairo%5Bslnt%2Cwght%5D.ttf" }
+        page.fonts = {"Cairo": "https://github.com/google/fonts/raw/main/apache/cairo/Cairo%5Bslnt%2Cwght%5D.ttf"}
         page.theme = ft.Theme(font_family="Cairo")
-        page.rtl = True # <<< Important for layout testing
+        page.rtl = True
 
-        # Simple view stack based routing for testing
         def route_change(route: ft.RouteChangeEvent):
-            target_route = route.route
-            print(f"Route change requested: {target_route}")
-            page.views.clear() # Simple navigation: clear all views
-
-            if target_route == "/mark_attendance":
+            page.views.clear()
+            if route.route == "/mark_attendance":
                 page.views.append(create_attendance_mark_view(page))
-            elif target_route == "/mark_departure":
+            elif route.route == "/mark_departure":
                 page.views.append(create_departure_mark_view(page))
-            elif target_route == "/attendance":
-                 # Mock view for the previous screen (/attendance)
-                 page.views.append(
-                     ft.View(
-                         "/attendance",
-                         [
-                             ft.AppBar(title=ft.Text("Attendance Selection (Mock)")),
-                             ft.ElevatedButton("Mark Attendance", on_click=lambda _: page.go("/mark_attendance")),
-                             ft.ElevatedButton("Mark Departure", on_click=lambda _: page.go("/mark_departure")),
-                             # Add a button to simulate coming from a specific action if needed
-                         ],
-                         bgcolor=PAGE_BGCOLOR, rtl=True
-                     )
-                 )
-            elif target_route == "/add_note":
-                 # Mock view for the 'Add Note' screen for testing navigation back
-                 page.views.append(
-                     ft.View(
-                         "/add_note",
-                         [
-                             ft.AppBar(title=ft.Text("Add Note Page (Mock)")),
-                             ft.ElevatedButton("Go Back (Simulated)", on_click=lambda _: page.go("/attendance")), # Test back navigation
-                         ],
-                          bgcolor=PAGE_BGCOLOR, rtl=True
-                     )
-                 )
+            elif route.route == "/attendance":
+                page.views.append(ft.View("/attendance", [
+                    ft.AppBar(title=ft.Text("Attendance Selection (Mock)")),
+                    ft.ElevatedButton("Mark Attendance", on_click=lambda _: page.go("/mark_attendance")),
+                    ft.ElevatedButton("Mark Departure", on_click=lambda _: page.go("/mark_departure"))
+                ], bgcolor=PAGE_BGCOLOR, rtl=True))
+            elif route.route == "/add_note":
+                page.views.append(ft.View("/add_note", [
+                    ft.AppBar(title=ft.Text("Add Note Page (Mock)")),
+                    ft.ElevatedButton("Go Back (Simulated)", on_click=lambda _: page.go("/attendance"))
+                ], bgcolor=PAGE_BGCOLOR, rtl=True))
             else:
-                 # Default/Initial View
-                 page.views.append(
-                    ft.View(
-                        "/",
-                        [
-                            ft.AppBar(title=ft.Text("Test Home")),
-                            ft.ElevatedButton("Go to Attendance Mark", on_click=lambda _: page.go("/mark_attendance")),
-                            ft.ElevatedButton("Go to Departure Mark", on_click=lambda _: page.go("/mark_departure")),
-                        ],
-                        bgcolor=PAGE_BGCOLOR, rtl=True
-                    )
-                )
+                page.views.append(ft.View("/", [
+                    ft.AppBar(title=ft.Text("Test Home")),
+                    ft.ElevatedButton("Go to Attendance Mark", on_click=lambda _: page.go("/mark_attendance")),
+                    ft.ElevatedButton("Go to Departure Mark", on_click=lambda _: page.go("/mark_departure"))
+                ], bgcolor=PAGE_BGCOLOR, rtl=True))
             page.update()
 
-        def view_pop(view_event: ft.ViewPopEvent):
-            # Handle back navigation (e.g., browser back button or swipe)
-            print(f"View pop requested: Current route {page.route}, Popped view {view_event.view.route}")
-            if len(page.views) > 1:
-                 page.views.pop()
-                 top_view = page.views[-1]
-                 # Avoid infinite loop if view_pop triggers another route_change immediately
-                 # Check if the target route is different from current displayed route if issues arise
-                 print(f"Popped. Navigating back to: {top_view.route}")
-                 page.go(top_view.route) # Go to the route of the now top view
-            else:
-                print("Cannot pop the last view.")
-
-
         page.on_route_change = route_change
-        page.on_view_pop = view_pop # Handle back button/swipe
+        page.go("/")
 
-        print("Initial page route setup. Navigating to /")
-        page.go("/") # Start at the root/test home view
-
-    # --- Run the App ---
-    # Ensure the assets_dir path is correct relative to where you RUN python
-    print(f"Running Flet app with assets_dir='{assets_dir}'")
-    ft.app(
-        target=main,
-        assets_dir=assets_dir # Pass the calculated assets directory
-    )
+    ft.app(target=main, assets_dir=assets_dir)
