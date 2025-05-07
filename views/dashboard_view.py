@@ -20,7 +20,7 @@ def create_dashboard_card(page: ft.Page, icon_src: str, text: str, action_data: 
     def card_clicked(e):
         action = e.control.data # Get the action data ('register', 'manage', 'reports', etc.)
         print(f"Dashboard card clicked: {action}")
-
+        page.routes.append('/dashboard')
         # --- NAVIGATION LOGIC ---
         if action == "manage":
             page.go("/attendance")
@@ -33,6 +33,7 @@ def create_dashboard_card(page: ft.Page, icon_src: str, text: str, action_data: 
             page.go("/colleges")
         else:
             # Default behavior: show a snackbar
+            page.routes.pop()
             page.show_snack_bar(ft.SnackBar(ft.Text(f"تم النقر على: {text} (No Action Yet)"), open=True))
         # --- END NAVIGATION LOGIC ---
 

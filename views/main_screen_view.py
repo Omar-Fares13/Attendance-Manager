@@ -16,6 +16,7 @@ def create_main_screen_view(page: ft.Page):
     async def _go_dashboard():
         print("wait")
         await asyncio.sleep(1.4)
+        page.routes = []
         page.go("/dashboard")
     page.run_task(_go_dashboard)
 

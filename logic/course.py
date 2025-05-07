@@ -40,7 +40,7 @@ def get_latest_course(is_male_type : bool = True):
         return course
 
 def get_all_courses():
-    with next(get_session) as session:
+    with next(get_session()) as session:
         stmt = (
             select(Course)
             .order_by(Course.start_date.desc())

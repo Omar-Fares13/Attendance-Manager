@@ -24,6 +24,7 @@ from views.add_student_view import create_add_student_view
 from views.qr_search_view import create_qr_search_student_view
 from views.edit_course_data_view import create_edit_course_data_view
 from views.delete_all_confirmation_view import create_delete_confirmation_view
+from views.report_view import create_report_view
 # --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
@@ -76,7 +77,7 @@ def main(page: ft.Page):
     page.padding = 0                 # No padding around the edges of the window
     page.bgcolor = "#E3DCCC"         # Default background color for all views
     page.rtl = True                  # <<< SET Right-to-Left layout globally
-
+    
     # --- Load Font ---
     # Construct the full path to the font file
     font_full_path = asset_path("Cairo-Regular.ttf") # Make sure this font is in assets folder
@@ -162,7 +163,8 @@ def main(page: ft.Page):
         #      page.views.append(create_edit_student_view(page, student_id)) # Pass ID
         elif actual_route == "/edit_student": # Assuming generic route for now
              page.views.append(create_edit_student_view(page))
-
+        elif actual_route == '/report':
+            page.views.append(create_report_view(page))
         # QR Code Flow
         elif actual_route == "/camera_qr":
             page.views.append(create_camera_qr_view(page))

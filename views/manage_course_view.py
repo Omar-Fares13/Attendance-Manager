@@ -17,7 +17,7 @@ def create_management_card(page: ft.Page, icon_src: str, text: str, button_bgcol
     def card_clicked(e):
         action = e.control.data
         print(f"Management card clicked: {action}")
-
+        page.routes.append('/manage_course')
         # --- NAVIGATION LOGIC ---
         if action == "attendance":
             page.go("/attendance")
@@ -27,7 +27,7 @@ def create_management_card(page: ft.Page, icon_src: str, text: str, button_bgcol
         # elif action == "manage_colleges":
         #     page.go("/college_management")
         else:
-            # Default placeholder action for unhandled actions (like manage_colleges for now)
+            page.routes.pop()
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action} (Not Implemented Yet)"), open=True))
         # --- END NAVIGATION LOGIC ---
 

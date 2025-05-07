@@ -99,7 +99,17 @@ def get_all_students() -> List[Student]:
 
 def get_student_by_id(student_id: int) -> Optional[Student]:
     with next(get_session()) as session:
-        student = session.query(Student).options(joinedload(Student.faculty)).filter(Student.id == student_id).one_or_none()
+        stmt = (select(Student)
+        .options(
+            selectinload(Student.faculty),
+            selectinload(Student.course),
+            selectinload(Student.attendance),
+            selectinload(Student.notes),
+        )
+        .where(Student.id == student_id)
+        .limit(1)
+        )
+        student = session.exec(stmt).one_or_none()
         return student
 
 
@@ -146,13 +156,23 @@ def search_students_by_name(name_query: str) -> List[Student]:
 
 def get_students(search_attributes: dict[str, any]) -> List[Student]:
     """
-    Fetch students matching any subset of the provided search_attributes.
-    Supported keys: name, national_id, phone_number, seq_num, faculty, qr_code
+    Fetch students matching any subset of the provided search_attributes,
+    and eagerly load faculty, course, attendance, and notes relationships.
+    Supported keys: name, national_id, phone_number, seq_num, faculty, qr_code,
+    is_male, course_id
     """
-    # start a fresh statement
-    stmt = select(Student).options(selectinload(Student.faculty))
+    # start a fresh statement with eager-loading options for all relationships
+    stmt = (
+        select(Student)
+        .options(
+            selectinload(Student.faculty),
+            selectinload(Student.course),
+            selectinload(Student.attendance),
+            selectinload(Student.notes),
+        )
+    )
 
-    # apply filters in the order you like
+    # apply filters
     if "name" in search_attributes:
         q = search_attributes["name"]
         stmt = stmt.where(Student.name.ilike(f"%{q}%"))
@@ -171,19 +191,23 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 
     if "qr_code" in search_attributes:
         q = search_attributes["qr_code"]
-        stmt = stmt.where(Student.qr_code.ilike(f"{q}"))
+        stmt = stmt.where(Student.qr_code == q)
 
     if "faculty" in search_attributes:
         q = search_attributes["faculty"]
         stmt = stmt.where(Faculty.name.ilike(f"%{q}%"))
-    
-    if 'is_male' in search_attributes:
-        q = search_attributes['is_male']
+    if 'faculty_id' in search_attributes:
+        q = search_attributes['faculty_id']
+        stmt = stmt.where(Student.faculty_id == q)
+
+    if "is_male" in search_attributes:
+        q = search_attributes["is_male"]
         stmt = stmt.where(Student.is_male == q)
     
-    if 'course_id' in search_attributes:
-        q = search_attributes['course_id']
+    if "course_id" in search_attributes:
+        q = search_attributes["course_id"]
         stmt = stmt.where(Student.course_id == q)
+
     # execute and return
     with next(get_session()) as session:
         students: List[Student] = session.exec(stmt).all()
@@ -205,3 +229,15 @@ def create_students_from_file(students, course_date, is_male):
             std['course_id'] = course_id
             std['is_male'] = is_male
             create_student_from_dict(std)
+
+def save_note(note : str, student_id : int, is_warning : bool = False):
+    note_entry = Note(note = note, student_id = student_id, is_warning = is_warning)
+    print(note)
+    print(student_id)
+    print(is_warning)
+    print("="*50)
+    with next(get_session()) as session:
+        session.add(note_entry)
+        session.commit()
+        session.refresh(note_entry)
+    return note_entry

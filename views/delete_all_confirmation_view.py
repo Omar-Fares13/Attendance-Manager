@@ -7,10 +7,12 @@ def create_delete_confirmation_view(page: ft.Page):
     def on_confirm(e):
         print("Confirmed: Proceeding with data deletion.")
         delete_all_data()
+        page.routes = ['/dashboard']
         page.go("/register_course_options")  # Or wherever you want to go after deletion
 
     def on_cancel(e):
         print("Cancelled deletion.")
+        page.routes = ['/dashboard']
         page.go("/register_course_options")  # Or back to a previous screen
 
     confirm_button = ft.ElevatedButton(

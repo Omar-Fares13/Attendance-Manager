@@ -105,10 +105,24 @@ def create_search_student_view(page: ft.Page):
                 tooltip=f"Action for {stu.name}",
                 on_click = lambda e : edit_data_click(e.control.data)
             )
-
+            note_button = ft.ElevatedButton(
+                data = stu.id,
+                text = 'ملاحظة',
+                bgcolor = ft.colors.BLACK,
+                color = ft.colors.WHITE,
+                width = 50, height = 35,
+                style = ft.ButtonStyle(shape = ft.RoundedRectangleBorder(radius = 6)),
+                tooltip = f"Action for {stu.name}",
+                on_click = lambda e : note_student(e.control.data)
+            )
+            buttons_row = ft.Row(
+            [update_button, note_button],
+            spacing=8,
+            alignment=ft.MainAxisAlignment.CENTER
+            )
             # assemble all the cells
             cells = [
-                create_data_cell(update_button),
+                create_data_cell(buttons_row),
                 create_data_cell(ft.Text(stu.name)),
                 create_data_cell(ft.Text(stu.national_id)),
                 create_data_cell(ft.Text(stu.seq_number)),
@@ -176,7 +190,9 @@ def create_search_student_view(page: ft.Page):
         # In a real app, consider passing student ID: page.go(f"/edit_student/{student_id}")
         page.student_id = student_id
         page.go(f"/login/edit_student") # Navigate to the edit student view route
-
+    def note_student(student_id : int = 1):
+        page.student_id = student_id
+        page.go("/add_note")
     # Button Styling
     button_style = ft.ButtonStyle( shape=ft.RoundedRectangleBorder(radius=8) )
     button_height = 45
