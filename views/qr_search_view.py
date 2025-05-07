@@ -99,7 +99,7 @@ def create_qr_search_student_view(page: ft.Page):
             # action button for this student
             search_button = ft.ElevatedButton(
                 data = stu.id,
-                text="تعديل",
+                text="تصوير",
                 bgcolor=ft.colors.ORANGE,
                 color=ft.colors.BLACK,
                 width=40, height=35,
