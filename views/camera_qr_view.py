@@ -368,9 +368,8 @@ def create_camera_qr_view(page: ft.Page):
 
     def on_keyboard_event(e: ft.KeyboardEvent):
         # Flet gives you e.key as e.g. "Enter" or " "
-        if e.key in ("Enter", " "):
+        if e.key in (" "):
             capture_click(e)
-            show_snackbar(page, "📸 تم الالتقاط عن طريق لوحة المفاتيح", ft.colors.GREEN_700)
 
     
     page.on_keyboard_event = on_keyboard_event
