@@ -34,9 +34,9 @@ def format_students(students):
          std.faculty.name,
          get_warnings(std),
          len(std.attendance),
-         12 - len(std.attendance),
+         len(std.attendance) - 12,
          get_notes(std),
-         "ناجح" if len(std.attendance) >= 10 else "راسب"  # Dynamic pass/fail status
+         "ناجح" if len(std.attendance) >= 10 else "راسب"
         ]
         for std in students
     ]
