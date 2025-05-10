@@ -51,8 +51,7 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
     for week in range(1, 3):
         for _ in range(7):  # Still iterate through 7 days to maintain week structure
             weekday = current_date.weekday()
-            # Skip Friday (weekday == 4 in Python's datetime where Monday=0)
-            if weekday != 5:
+            if weekday != 4:
                 day_name = get_arabic_day_name(weekday)
                 day_display = f"{day_name} {week}"
                 days.append((current_date, day_display))
@@ -142,7 +141,7 @@ def get_arabic_day_name(weekday: int) -> str:
     """Returns the Arabic name for the given weekday."""
     arabic_days = [
         "السبت", "الاحد", "الاثنين",
-        "الاربعاء", "الخميس", "الجمعة", "السبت"
+        "الثلاثاء", "الاربعاء", "الخميس", "الجمعة"
     ]
     return arabic_days[(weekday + 2) % 7]
 
