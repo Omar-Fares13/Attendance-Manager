@@ -104,7 +104,7 @@ def create_upload_course_file_view(page: ft.Page):
                 create_table_cell(student['seq_number']),
                 create_table_cell(student['name']),
                 create_table_cell(student['national_id']),
-                create_table_cell(faculty),
+                create_table_cell(student['faculty']),
             ])
             for student in all_students
         ]
