@@ -23,6 +23,7 @@ def create_form_field(label: str, name : str, value : str):
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
         border_color="#B58B18", # Gold border
+        color="#000000",
         focused_border_color="#B58B18", # Gold focus border
         bgcolor=ft.Colors.WHITE, # White background
         border_radius=8,
@@ -92,11 +93,17 @@ def create_edit_student_view(page: ft.Page):
         value=student.phone_number
     )
 
+    location_field = create_form_field(
+        label="محل السكن",
+        name="location",
+        value=student.location
+    )
+
     # --- Save Button ---
     def save_data(e):
         print("Save button clicked!")
         update_student(edit_attributes)
-        page.open(ft.SnackBar(ft.Text("تم حفظ التعديلات (محاكاة)")))
+        page.open(ft.SnackBar(ft.Text("تم حفظ التعديلات")))
         page.update()
         print(edit_attributes)
         go_back(None) # Simulate going back after save
@@ -125,6 +132,7 @@ def create_edit_student_view(page: ft.Page):
                 controls=[
                     name_field,
                     national_id_field,
+                    location_field,
                 ]
             ),
             # Right Column

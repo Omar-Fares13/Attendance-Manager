@@ -5,6 +5,7 @@ from utils.assets import ft_asset # Only needed if using specific assets later
 from models import Student, Faculty
 from logic.students import get_students, get_student_by_id
 from logic.course import get_latest_course
+from logic.file_reader import normalize_arabic
 search_attributes = {}
 
 # --- Helper Function for Search TextFields ---
@@ -13,6 +14,7 @@ def create_search_field(label: str, width: float = None, expand: bool = False, n
     return ft.TextField(
         data = name,
         label=label,
+        color="#000000",
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
         border=ft.InputBorder.UNDERLINE, # Underline border style
@@ -127,6 +129,9 @@ def create_qr_search_student_view(page: ft.Page):
         if not value:
             search_attributes.pop(name, None)
         else:
+            # Normalize Arabic fields so search matches storage
+            if name in ("name", "faculty", "qr_code", "national_id"):
+                value = normalize_arabic(value)
             search_attributes[name] = value
         search()
 

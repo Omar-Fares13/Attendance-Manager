@@ -33,6 +33,7 @@ class Student(SQLModel, table=True):
     national_id: str
     qr_code: str
     photo_path: Optional[str] = ""
+    location: str = ""
 
     # Relationships
     faculty: Optional[Faculty] = Relationship(back_populates="students")

@@ -27,6 +27,7 @@ def create_login_view(page: ft.Page):
         label="كلمة السر",
         password=True,
         border_color="#B58B18",
+        color="#000000",
         focused_border_color="#B58B18",
         border_radius=8,
         bgcolor=ft.Colors.WHITE,

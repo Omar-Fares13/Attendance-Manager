@@ -6,12 +6,14 @@ class StudentCreateDTO:
         is_male: bool,
         faculty_id: int,
         national_id: str,
+        location: str
         ):
         self.phone_number = phone_number
         self.name = name
         self.is_male = is_male
         self.faculty_id = faculty_id
         self.national_id = national_id
+        self.location = location
         self.raw_name = name
 
     def to_student():

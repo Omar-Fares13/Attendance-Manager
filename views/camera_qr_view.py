@@ -8,9 +8,9 @@ import base64
 import threading
 import time
 import numpy as np
-from logic.students import get_student_by_id
+from logic.students import get_student_by_id,update_student
 from logic.qr_generator import generate_qr_code
-student_id = 1
+
 
 # --- Asset and Banner Imports (Keep your original logic) ---
 try:
@@ -51,6 +51,33 @@ except (ImportError, ValueError):
 
 
 student = {}
+edit_attributes = {}
+
+
+def update_field(name : str, value : str):
+    if not value:
+        edit_attributes.pop(name, None)
+    else:
+        edit_attributes[name] = value
+
+
+def create_form_field(label: str, name : str, value : str):
+    """Creates a styled TextField for the edit form."""
+    return ft.TextField(
+        data = name,
+        value = value,
+        label=label,
+        text_align=ft.TextAlign.RIGHT,
+        label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
+        border_color="#B58B18", # Gold border
+        color="#000000",
+        focused_border_color="#B58B18", # Gold focus border
+        bgcolor=ft.Colors.WHITE, # White background
+        border_radius=8,
+        content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
+        height=45, 
+        on_change = lambda e : update_field(e.control.data, value = e.control.value)
+    )
 
 # --- Helper to display student data lines ---
 def create_data_row(label: str, value: str):
@@ -88,9 +115,43 @@ def create_camera_qr_view(page: ft.Page):
     """Creates the Flet View for the Camera/QR screen with live camera feed."""
 
     student['id'] = page.student_id
+    edit_attributes['id'] = page.student_id
     student_data = get_student_by_id(student['id'])
     if not page.rtl:
         print("WARNING: page.rtl is not set to True.")
+
+    
+    phone_field = ft.Container(
+    content=create_form_field(
+        label="رقم الهاتف",
+        name="phone_number",
+        value=student_data.phone_number
+    ),
+    width=150
+)
+
+    location_field = create_form_field(
+        label="محل السكن",
+        name="location",
+        value=student_data.location
+    )
+
+    def save_data(e):
+        print("Save button clicked!")
+        update_student(edit_attributes)
+        page.open(ft.SnackBar(ft.Text("تم اضافة محل السكن ورقم الهاتف ")))
+        page.update()
+        print(edit_attributes)
+    
+    save_button = ft.ElevatedButton(
+        text="حفظ",
+        icon=ft.icons.SAVE_OUTLINED,
+        bgcolor="#B58B18", # Gold
+        color=ft.Colors.WHITE,
+        height=45,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+        on_click=save_data
+    )
 
     # --- Camera State ---
     cap = None
@@ -236,7 +297,6 @@ def create_camera_qr_view(page: ft.Page):
             create_data_row("الرقم القومي:", student_data.national_id),
             create_data_row("الكلية:", student_data.faculty.name),
             create_data_row("مسلسل:", student_data.seq_number),
-            create_data_row("ملاحظات:", "واحد اثنان ثلاثة اربعة"),
         ]
     )
 
@@ -313,23 +373,6 @@ def create_camera_qr_view(page: ft.Page):
                 break
         cv2.destroyWindow(window_name)
 
-        
-    def retake_photo_click(e):
-        print("Retake Photo Clicked")
-        if not camera_thread or not camera_thread.is_alive():
-             print("Camera thread not running. Restarting...")
-             camera_error_message.value = "جاري تشغيل الكاميرا..."
-             camera_error_message.color = ft.colors.BLACK54
-             camera_error_message.visible = True
-             camera_feed_image.visible = False
-             camera_error_message.update()
-             camera_feed_image.update()
-             stop_camera_event.clear()
-             start_camera_thread()
-        else:
-             print("Feed is live.")
-             show_snackbar(page, "الكاميرا تعرض البث المباشر بالفعل.", ft.colors.BLUE_GREY_500)
-
     def capture_click(e):
         nonlocal latest_frame
         print("Capture Clicked")
@@ -377,7 +420,6 @@ def create_camera_qr_view(page: ft.Page):
     
     # --- Buttons ---
     show_qr_btn = ft.ElevatedButton("عرض QR", icon=ft.icons.QR_CODE_2, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#B58B18", color=ft.colors.WHITE, height=40, on_click=show_qr_click)
-    retake_photo_btn = ft.ElevatedButton("اعادة الصورة", icon=ft.icons.REFRESH, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#C83737", color=ft.colors.WHITE, height=40, on_click=retake_photo_click)
     return_button_main = ft.ElevatedButton("الرجوع", icon=ft.icons.ARROW_BACK, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#5C544A", color=ft.colors.WHITE, height=45, on_click=go_back)
     capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT,autofocus=True, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
 
@@ -386,8 +428,8 @@ def create_camera_qr_view(page: ft.Page):
         content=ft.Column(
             [
                 student_data_column,
-                ft.Container(expand=True), # Spacer
-                ft.Row([show_qr_btn, retake_photo_btn], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
+                ft.Row([phone_field, location_field], alignment=ft.MainAxisAlignment.SPACE_EVENLY),
+                ft.Row([show_qr_btn, save_button], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
             ],
             alignment=ft.MainAxisAlignment.START,
             spacing=15
@@ -412,12 +454,12 @@ def create_camera_qr_view(page: ft.Page):
         [
             ft.Container(
                 content=left_panel,
-                col={"xs": 12, "sm": 12, "md": 5, "lg": 4}, # Left panel column settings
+                col={"xs": 12, "sm": 12, "md":6,"lg":5}, # Left panel column settings
                 padding=ft.padding.only(bottom=10)
             ),
             ft.Container(
                 content=right_panel_column, # Right panel contains the camera
-                col={"xs": 12, "sm": 12, "md": 7, "lg": 8}, # Right panel column settings
+                col={"xs": 12, "sm": 12, "md": 6, "lg": 7}, # Right panel column settings
                 padding=ft.padding.only(bottom=10)
             ),
         ],

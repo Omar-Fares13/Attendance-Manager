@@ -101,6 +101,7 @@ def create_student(stu : StudentCreateDTO) -> Student:
             is_male = stu.is_male,
             faculty_id = stu.faculty_id,
             national_id = stu.national_id,
+            location=stu.location,
             qr_code = str(uuid.uuid4()),
             seq_number = int(seq) + 1 if seq else 1,
             course_id = course_id
@@ -147,6 +148,7 @@ def update_student(updated_fields: dict) -> Optional[Student]:
         session.add(student)
         session.commit()
         session.refresh(student)
+        print("saved")
         return student
 
 # Delete
@@ -212,6 +214,10 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     if "qr_code" in search_attributes:
         q = search_attributes["qr_code"]
         stmt = stmt.where(Student.qr_code == q)
+
+    if "location" in search_attributes:
+        q = search_attributes["location"]
+        stmt = stmt.where(Student.location.ilike(f"%{q}%"))
 
     if "faculty" in search_attributes:
         q = search_attributes["faculty"]
