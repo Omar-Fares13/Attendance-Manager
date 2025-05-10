@@ -10,7 +10,7 @@ from bidi.algorithm import get_display
 
 search_attributes = {}
 faculty_lookup = {}
-
+page_id = 0
 def normalize_arabic(text: str) -> str:
     """Reshape and reorder Arabic text for consistent storage/search."""
     reshaped = arabic_reshaper.reshape(text)
@@ -105,6 +105,8 @@ def create_search_student_view(page: ft.Page):
 
     # --- Search Fields Definition ---
     def search():
+        search_attributes['page'] = page_id
+        print(search_attributes)
         students: List[Student] = get_students(search_attributes)
         rows: List[ft.DataRow] = []   
         for stu in students:
@@ -150,6 +152,9 @@ def create_search_student_view(page: ft.Page):
         results_table.update()
 
     def update_attribute(name, value):
+        global page_id
+        page_id = 0
+        print('=' * 80)
         if not value:
             search_attributes.pop(name, None)
         else:
@@ -283,6 +288,7 @@ def create_search_student_view(page: ft.Page):
 
     # --- Get Banner ---
     banner_control = create_banner(page.width)
+        # --- Pagination Buttons ---
 
     # --- Page Content Layout (Column holding all sections) ---
     content_column = ft.Column(
@@ -303,6 +309,7 @@ def create_search_student_view(page: ft.Page):
             ),
             # Action Buttons Area
             action_buttons_container,
+            pagination_buttons,
             # DataTable Area (in an expanding container)
             ft.Container(
                 padding=ft.padding.symmetric(horizontal=30, vertical=20),

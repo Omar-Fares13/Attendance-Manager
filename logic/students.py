@@ -177,12 +177,7 @@ def search_students_by_name(name_query: str) -> List[Student]:
         return session.exec(statement).all()
 
 def get_students(search_attributes: dict[str, any]) -> List[Student]:
-    """
-    Fetch students matching any subset of the provided search_attributes,
-    and eagerly load faculty, course, attendance, and notes relationships.
-    Supported keys: name, national_id, phone_number, seq_num, faculty, qr_code,
-    is_male, course_id
-    """
+
     # start a fresh statement with eager-loading options for all relationships
     stmt = (
         select(Student)
@@ -233,8 +228,9 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     if "course_id" in search_attributes:
         q = search_attributes["course_id"]
         stmt = stmt.where(Student.course_id == q)
-
-    # execute and return
+    if 'page' in search_attributes:
+        x = 20 * search_attributes['page']
+        stmt = stmt.offset(x).limit(20)
     with next(get_session()) as session:
         students: List[Student] = session.exec(stmt).all()
     return students
