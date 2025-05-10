@@ -196,6 +196,7 @@ def create_edit_student_view(page: ft.Page):
         value=str(student.faculty_id),
         on_change=lambda e: update_field(name=e.control.data, value=e.control.value),
         border_color="#B58B18",
+        color="#000000",
         focused_border_color="#B58B18",
         border_radius=8,
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),

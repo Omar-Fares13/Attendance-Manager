@@ -88,14 +88,19 @@ def create_report_course_view(page: ft.Page):
     course_dropdown = ft.Dropdown(
         hint_text="تاريخ الدورة",           # your placeholder
         border_color=FORM_BORDER_COLOR,
+        color="#000000",
+        hint_style=ft.TextStyle(color="#000000"),
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
         text_align=ft.TextAlign.RIGHT,
         options=[
-            # label shown in the list, key is the .value you’ll read out
-            ft.dropdown.Option(text=course_title(c), key=c.id)
-            for c in courses
-        ],
+        ft.dropdown.Option(
+            text=course_title(c), 
+            key=c.id,
+            text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
+        )
+        for c in courses
+    ],
         # optionally pre‑select the first one (or leave as None)
         value=courses[0].id if courses else None,
     )
@@ -105,15 +110,26 @@ def create_report_course_view(page: ft.Page):
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
+        color="#000000",
+        hint_style=ft.TextStyle(color="#000000"),
         # text_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for selected item (might not work perfectly cross-platform)
         # hint_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for hint (might not work perfectly cross-platform)
-        options=[ft.dropdown.Option(text = f.name, key = f.id) for f in faculties],
+        options=[
+        ft.dropdown.Option(
+            text=f.name, 
+            key=f.id,
+            text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
+        )
+        for f in faculties
+    ],
     )
 
     student_name_field = ft.TextField(
         hint_text="اسم طالب (اختياري)", # Use hint_text
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
+        color="#000000",
+        hint_style=ft.TextStyle(color="#000000"),
         bgcolor=FIELD_BGCOLOR,
         text_align=ft.TextAlign.RIGHT,
     )

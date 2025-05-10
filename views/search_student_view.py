@@ -194,11 +194,11 @@ def create_search_student_view(page: ft.Page):
         spacing=20,
         controls=[phone_field, serial_field, faculty_field]
     )
-    qr_field = create_search_field("بحث باستخدام الكيو أر", expand = True, update = update_attribute, name = "qr_code")
+    location_field = create_search_field("بحث باستخدام محل السكن", expand = True, update = update_attribute, name = "location")
     search_field_row3 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
-        controls=[qr_field]
+        controls=[location_field]
     )
     search_fields_container = ft.Column(
         controls=[search_field_row1, ft.Container(height=10), search_field_row2, search_field_row3],
@@ -312,7 +312,7 @@ def create_search_student_view(page: ft.Page):
             ),
         ],
         expand=True, # Allow column to fill vertical page space
-        scroll=ft.ScrollMode.ADAPTIVE, # Enable scrolling for the whole content column
+        scroll=ft.ScrollMode.ALWAYS, # Enable scrolling for the whole content column
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH # Stretch children horizontally
     )
     # --- View Definition ---
