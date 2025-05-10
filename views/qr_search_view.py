@@ -9,7 +9,7 @@ from logic.course import get_latest_course
 from logic.file_reader import normalize_arabic
 search_attributes = {}
 faculty_lookup = {}
-
+page_id = 0
 # --- Helper Function for Search TextFields ---
 def create_search_field(label: str, width: float = None, expand: bool = False, name :str = "", update = None):
     """Creates a styled TextField for search criteria."""
@@ -101,6 +101,7 @@ def create_qr_search_student_view(page: ft.Page):
 
     # --- Search Fields Definition ---
     def search():
+        search_attributes['page'] = page_id
         students: List[Student] = get_students(search_attributes)
         rows: List[ft.DataRow] = []   
         for stu in students:
@@ -132,6 +133,7 @@ def create_qr_search_student_view(page: ft.Page):
         results_table.update()
 
     def update_attribute(name, value):
+        page_id = 0
         if not value:
             search_attributes.pop(name, None)
         else:
@@ -260,7 +262,25 @@ def create_qr_search_student_view(page: ft.Page):
 
     # --- Get Banner ---
     banner_control = create_banner(page.width)
+    def next_page(e):
+        global page_id
+        page_id += 1
+        search()
 
+    def prev_page(e):
+        global page_id
+        if page_id > 0:
+            page_id -= 1
+        search()
+
+    pagination_buttons = ft.Row(
+        [
+            ft.ElevatedButton(text="التالي", on_click=next_page, bgcolor="#B58B18", color=ft.colors.WHITE),
+            ft.ElevatedButton(text="السابق", on_click=prev_page, bgcolor="#B58B18", color=ft.colors.WHITE),            
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=20
+    )
     # --- Page Content Layout (Column holding all sections) ---
     content_column = ft.Column(
         [
@@ -280,6 +300,7 @@ def create_qr_search_student_view(page: ft.Page):
             ),
             # Action Buttons Area
             action_buttons_container,
+            pagination_buttons,
             # DataTable Area (in an expanding container)
             ft.Container(
                 padding=ft.padding.symmetric(horizontal=30, vertical=20),

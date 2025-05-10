@@ -29,14 +29,15 @@ def get_notes(std):
 def format_students(students):
     formated_students = [
         [std.name,
-        std.seq_number,
-        std.national_id,
-        std.faculty.name,
-        get_warnings(std),
-        len(std.attendance),
-        12,
-        get_notes(std),
-        "تاجح"]
+         std.seq_number,
+         std.national_id,
+         std.faculty.name,
+         get_warnings(std),
+         len(std.attendance),
+         len(std.attendance) - 12,
+         get_notes(std),
+         "ناجح" if len(std.attendance) >= 10 else "راسب"
+        ]
         for std in students
     ]
     for i in range(len(formated_students)):

@@ -219,9 +219,6 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
         q = search_attributes["location"]
         stmt = stmt.where(Student.location.ilike(f"%{q}%"))
 
-    if "faculty" in search_attributes:
-        q = search_attributes["faculty"]
-        stmt = stmt.where(Faculty.name.ilike(f"%{q}%"))
     if 'faculty_id' in search_attributes:
         q = search_attributes['faculty_id']
         stmt = stmt.where(Student.faculty_id == q)
@@ -233,8 +230,9 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     if "course_id" in search_attributes:
         q = search_attributes["course_id"]
         stmt = stmt.where(Student.course_id == q)
-
-    # execute and return
+    if 'page' in search_attributes:
+        x = 20 * search_attributes['page']
+        stmt = stmt.offset(x).limit(20)
     with next(get_session()) as session:
         students: List[Student] = session.exec(stmt).all()
     return students
