@@ -45,17 +45,20 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
     attendance_records = get_attendance_by_student_id(student_id)
     present_dates = {record.date for record in attendance_records}
 
-    # Generate all days of the course (2 weeks starting Saturday)
+    # Generate all days of the course (2 weeks starting Saturday), skipping Fridays
     days = []
     current_date = course_start_date
     for week in range(1, 3):
-        for _ in range(7):
-            day_name = get_arabic_day_name(current_date.weekday())
-            day_display = f"{day_name} {week}"
-            days.append((current_date, day_display))
+        for _ in range(7):  # Still iterate through 7 days to maintain week structure
+            weekday = current_date.weekday()
+            # Skip Friday (weekday == 4 in Python's datetime where Monday=0)
+            if weekday != 5:
+                day_name = get_arabic_day_name(weekday)
+                day_display = f"{day_name} {week}"
+                days.append((current_date, day_display))
             current_date += timedelta(days=1)
 
-    # Create columns
+    # Rest of the function remains the same...
     columns = []
     for day_date, day_display in days:
         columns.append(
@@ -65,7 +68,6 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
             )
         )
 
-    # Create single row with all days
     cells = []
     for day_date, day_display in days:
         attended = day_date in present_dates
@@ -79,7 +81,6 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
         )
         cells.append(ft.DataCell(icon_button))
 
-    # Create data table
     table = ft.DataTable(
         columns=columns,
         rows=[ft.DataRow(cells=cells)],
@@ -91,7 +92,6 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
         border=ft.border.all(1, "#B58B18"),
     )
 
-    # Create a horizontally scrollable container
     return ft.Row(
         controls=[
             ft.Container(
