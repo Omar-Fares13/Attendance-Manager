@@ -315,7 +315,25 @@ def create_search_student_view(page: ft.Page):
     # --- Get Banner ---
     banner_control = create_banner(page.width)
         # --- Pagination Buttons ---
+    def next_page(e):
+        global page_id
+        page_id += 1
+        search()
 
+    def prev_page(e):
+        global page_id
+        if page_id > 0:
+            page_id -= 1
+        search()
+
+    pagination_buttons = ft.Row(
+        [
+            ft.ElevatedButton(text="التالي", on_click=next_page, bgcolor="#B58B18", color=ft.colors.WHITE),
+            ft.ElevatedButton(text="السابق", on_click=prev_page, bgcolor="#B58B18", color=ft.colors.WHITE),            
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=20
+    )
     # --- Page Content Layout (Column holding all sections) ---
     content_column = ft.Column(
         [
