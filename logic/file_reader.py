@@ -10,7 +10,11 @@ from bidi.algorithm import get_display
 def remove_new_line(name: str) -> str:
     """Flatten multi-line cell text."""
     # Simply remove newlines; we will handle reshaping/reordering later
-    return " ".join(part for part in name.splitlines() if part)
+    print(name)
+    ret = " ".join(part for part in name.splitlines() if part)
+    print('=' * 80)
+    print(ret)
+    return ret
 
 
 def normalize_arabic(text: str) -> str:
@@ -59,6 +63,7 @@ def read_pdf(path: str, is_male: bool = True):
                         students.append({
                             "seq_number": seq_number,
                             "name":        name,
+                            "raw_name" : raw_name,
                             "national_id": national_id,
                             "is_male":     is_male,
                             "faculty": faculty_name
@@ -84,13 +89,3 @@ def read_pdf(path: str, is_male: bool = True):
             new_id += 1
 
     return clean_students, faculty_name
-
-
-if __name__ == "__main__":
-    pdf_path = "military_data.pdf"  # ensure correct path
-    students, faculty = read_pdf(pdf_path)
-
-    print("Faculty:", faculty)
-    print(f"Parsed {len(students)} students:\n")
-    for s in students:
-        print(f" Seq: {s['seq_number']} | Name: {s['name']} | ID: {s['national_id']}")

@@ -5,7 +5,6 @@ from logic.students import create_student,get_student_by_id
 from logic.course import create_course
 from DTOs.StudentCreateDTO import StudentCreateDTO
 create_db_and_tables()
-
 create_faculty("Engineering")
 
 # Create and save a faculty
@@ -25,7 +24,8 @@ student_2 = StudentCreateDTO(
     phone_number="0987654321"  # Provide a valid phone number
 )
 
-
+create_course(is_male_type = True)
+create_course(is_male_type = False)
 create_student(student_1)
 create_student(student_2)
 

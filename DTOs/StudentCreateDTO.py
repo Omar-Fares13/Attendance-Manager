@@ -12,10 +12,12 @@ class StudentCreateDTO:
         self.is_male = is_male
         self.faculty_id = faculty_id
         self.national_id = national_id
-        
+        self.raw_name = name
+
     def to_student():
         student = Student(
             name = self.name,
+            raw_name = self.raw_name,
             phone_number = self.phone_number,
             is_male = self.is_male,
             faculty = self.faculty_id,

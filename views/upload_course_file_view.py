@@ -3,7 +3,6 @@ from datetime import datetime
 import os
 from components.banner import create_banner
 from logic.file_reader import read_pdf
-from logic.students import create_students_from_file
 # Colors and style constants
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"

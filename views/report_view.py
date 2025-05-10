@@ -1,7 +1,6 @@
 # views/edit_course_data_view.py
 
 import flet as ft
-from logic.students import create_students_from_file
 from components.banner import create_banner
 from logic.file_write import get_student_data, create_excel
 

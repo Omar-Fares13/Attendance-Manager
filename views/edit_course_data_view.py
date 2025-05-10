@@ -19,7 +19,7 @@ FONT_FAMILY_REGULAR = "Tajawal"
 FONT_FAMILY_BOLD = "Tajawal-Bold"
 
 attribs = {}
-
+raw_names = []
 # --- Helper to create styled TextField for cells ---
 def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells and assigns a Ref."""
@@ -48,6 +48,7 @@ def create_edit_course_data_view(page: ft.Page):
     attribs['is_male'] = (page.file_students)['students'][0]['is_male']
     attribs['date'] = page.file_students['date']
     data_rows = [[std['name'], std['seq_number'], std['national_id'], std['faculty']] for std in (page.file_students)['students']]
+    raw_names = [std['raw_name']  for std in page.file_students['students']]
     course_file_name = page.client_storage.get("pending_course_name") or "ملف غير محدد"
 
     # --- Create refs for all TextFields ---
@@ -83,7 +84,7 @@ def create_edit_course_data_view(page: ft.Page):
                     except:
                         value = value
                     current_row_data.append(value)
-            std = {'name' : current_row_data[0], 'seq_number' : current_row_data[1], 'national_id' : current_row_data[2], 'faculty' : current_row_data[3], 'is_male' : attribs['is_male']}
+            std = {'name' : current_row_data[0], 'raw_name' : raw_names[r_idx], 'seq_number' : current_row_data[1], 'national_id' : current_row_data[2], 'faculty' : current_row_data[3], 'is_male' : attribs['is_male']}
             
             updated_data.append(std)
         create_students_from_file(updated_data, attribs['date'], attribs['is_male'])

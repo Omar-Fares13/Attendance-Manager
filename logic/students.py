@@ -31,6 +31,8 @@ def get_student_by_qr_code(qr_code: str) -> Optional[Student]:
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
     try:
         with next(get_session()) as session:
+            if not "raw_name" in student_data:
+                student_data['raw_name'] = student_data['name']
             # Find the current max seq_number for this faculty
             stmt = (
                 select(Course.id)
@@ -94,6 +96,7 @@ def create_student(stu : StudentCreateDTO) -> Student:
         seq = session.exec(stmt).one_or_none()
         student = Student(
             name = stu.name,
+            raw_name = stu.raw_name,
             phone_number = stu.phone_number,
             is_male = stu.is_male,
             faculty_id = stu.faculty_id,
@@ -168,7 +171,7 @@ def get_student_by_seq_number(seq_number: int) -> Optional[Student]:
 
 def search_students_by_name(name_query: str) -> List[Student]:
     with next(get_session()) as session:
-        statement = select(Student).where(Student.name.ilike(f"%{name_query}%"))
+        statement = select(Student).where(Student.raw_name.ilike(f"%{name_query}%"))
         return session.exec(statement).all()
 
 def get_students(search_attributes: dict[str, any]) -> List[Student]:
@@ -192,7 +195,7 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     # apply filters
     if "name" in search_attributes:
         q = search_attributes["name"]
-        stmt = stmt.where(Student.name.ilike(f"%{q}%"))
+        stmt = stmt.where(Student.raw_name.ilike(f"%{q}%"))
 
     if "national_id" in search_attributes:
         q = search_attributes["national_id"]
@@ -245,6 +248,9 @@ def create_students_from_file(students, course_date, is_male):
         for std in students:
             std['course_id'] = course_id
             std['is_male'] = is_male
+            if not 'raw_name' in std:
+                print("=" * 100)
+                std['raw_name'] = std['name']
             create_student_from_dict(std)
 
 def save_note(note : str, student_id : int, is_warning : bool = False):
