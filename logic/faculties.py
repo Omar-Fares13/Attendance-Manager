@@ -4,7 +4,8 @@ from typing import List, Optional
 from models import Faculty
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from db import get_session
+from db import get_session, engine
+
 
 # Create faculty
 def create_faculty(name : str) -> Faculty:
@@ -16,9 +17,13 @@ def create_faculty(name : str) -> Faculty:
         return faculty
 
 # Get all faculties
-def get_all_faculties() -> List[Faculty]:
-    with next(get_session()) as session:
-        faculties = session.exec(select(Faculty)).all()
+def get_all_faculties() -> list[Faculty]:
+    with Session(engine) as session:
+        statement = select(Faculty).options(selectinload(Faculty.students))
+        results = session.exec(statement)
+        faculties = results.all()
+        # At this point, each faculty object in the 'faculties' list
+        # will have its 'students' attribute already populated.
         return faculties
 
 # Get by ID

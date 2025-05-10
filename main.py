@@ -26,7 +26,6 @@ from views.qr_search_view import create_qr_search_student_view
 from views.edit_course_data_view import create_edit_course_data_view
 from views.delete_all_confirmation_view import create_delete_confirmation_view
 from views.report_view import create_report_view
-# --- Import the Attendance/Departure Mark Views ---
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
     create_departure_mark_view
