@@ -222,6 +222,7 @@ def create_upload_course_file_view(page: ft.Page):
 
     file_path_field = ft.TextField(
         ref=file_path_field_ref,
+        color="#000000",
         hint_text="اختر ملف بيانات الطلاب (PDF)...", read_only=True,
         text_align=ft.TextAlign.RIGHT, height=55, border_color=PRIMARY_COLOR,
         border_radius=8, border_width=1.5, content_padding=ft.padding.only(right=15, left=5, top=5),
@@ -233,6 +234,7 @@ def create_upload_course_file_view(page: ft.Page):
     )
     date_field = ft.TextField(
         ref=date_field_ref,
+        color="#000000",
         hint_text="YYYY/MM/DD",
         read_only=True,
         text_align=ft.TextAlign.CENTER,

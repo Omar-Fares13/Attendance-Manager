@@ -26,6 +26,7 @@ def create_search_field(label: str, width: float = None, expand: bool = False, n
         border_color="#B58B18",          # Gold border color
         focused_border_color="#B58B18",  # Gold focus border color
         bgcolor=ft.colors.with_opacity(0.03, ft.colors.BLACK12), # Very light background
+        color="#000000",
         border_radius=8,
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
         height=45, # Control height

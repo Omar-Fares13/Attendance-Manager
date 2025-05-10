@@ -20,6 +20,7 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 
 attribs = {}
 raw_names = []
+content_ref = ft.Ref[ft.Column]()
 # --- Helper to create styled TextField for cells ---
 def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells and assigns a Ref."""
@@ -29,6 +30,7 @@ def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
         text_align=ft.TextAlign.RIGHT,
         # Styling to make it look like part of the table cell
         border=ft.InputBorder.NONE, # No border
+        color="#000000",
         filled=True,
         bgcolor=ft.colors.TRANSPARENT, # Let the cell background show through
         content_padding=ft.padding.symmetric(horizontal=10, vertical=8), # Adjust padding
@@ -94,6 +96,17 @@ def create_edit_course_data_view(page: ft.Page):
 
 
     # --- UI Controls ---
+    
+    scroll_down_fab = ft.FloatingActionButton(
+    icon=ft.icons.ARROW_DOWNWARD_ROUNDED,
+    tooltip="اذهب إلى الأسفل",
+    on_click=lambda e: content_ref.current.scroll_to(
+        key="confirm_section",
+        duration=400,
+        curve=ft.AnimationCurve.EASE_IN_OUT
+        )
+    )
+
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, # RTL back arrow
         icon_color=PRIMARY_COLOR,
@@ -204,6 +217,7 @@ def create_edit_course_data_view(page: ft.Page):
 
     # --- Confirmation Button ---
     confirm_button = ft.ElevatedButton(
+        key="confirm_section",     # ← this is your target
         text="تأكيد ومتابعة",
         icon=ft.icons.CHECK_CIRCLE_OUTLINE,
         bgcolor=BUTTON_CONFIRM_COLOR,
@@ -257,6 +271,7 @@ def create_edit_course_data_view(page: ft.Page):
              ft.Container(height=30), # Bottom padding
         ],
         # expand=True, # Column itself takes vertical space
+        ref=content_ref,
         scroll=ft.ScrollMode.ADAPTIVE, # Make the main column scrollable vertically
         horizontal_alignment=ft.CrossAxisAlignment.CENTER # Center items like title, instruction, button row
     )
@@ -265,6 +280,8 @@ def create_edit_course_data_view(page: ft.Page):
     return ft.View(
         route="/edit_course_data", # Route for this view
         bgcolor=BG_COLOR,
+        floating_action_button=scroll_down_fab,
+        floating_action_button_location=ft.FloatingActionButtonLocation.END_FLOAT,
         padding=0,
         controls=[
             ft.Column(
