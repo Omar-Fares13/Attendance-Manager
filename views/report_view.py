@@ -38,8 +38,12 @@ def create_uneditable_cell(value: str, ref: ft.Ref[ft.TextField]):
 
 def create_report_view(page: ft.Page):
     """Creates the Flet View for editing extracted course data."""
-    headers = ["الاسم", "الرقم المسلسل", "الرقم القومي", "الكلية", "انذارات", "حضور", "لم يحضر", "ملاحظات", "الحالة"]
+    headers = ["الاسم", "الرقم المسلسل", "الرقم القومي", "الكلية", "انذارات", "حضور", "ملاحظات", "الحالة"]
     data_rows = get_student_data(page.course_id, page.faculty_id, page.student_name)
+
+    # Remove the absent column data from each row (assuming it was the 6th index)
+    data_rows = [row[:6] + row[7:] for row in data_rows]
+
     text_field_refs = [
         [ft.Ref[ft.TextField]() for _ in range(len(headers))] for _ in range(len(data_rows))
     ]
@@ -52,7 +56,34 @@ def create_report_view(page: ft.Page):
         print("pdf")
 
     def extract_xlsx(e):
-        create_excel(headers, data_rows, page.course_name)
+        # Separate failing and passing students
+        failing_students = []
+        passing_students = []
+
+        for row in data_rows:
+            # Assuming status is the last column (index -1)
+            if row[-1] == "راسب":
+                failing_students.append(row)
+            else:
+                passing_students.append(row)
+
+        # Combine with failing students first
+        sorted_data = failing_students + passing_students
+
+        # Add a summary row at the top
+        summary_row = [
+            "",  # Name
+            "",  # Serial
+            "",  # National ID
+            "",  # Faculty
+            "",  # Warnings
+            "",  # Attendance
+            "",  # Notes
+            f"إجمالي الراسب: {len(failing_students)} | إجمالي الناجح: {len(passing_students)}"
+        ]
+
+        # Create Excel with sorted data
+        create_excel(headers, [summary_row] + sorted_data, page.course_name)
 
     # --- UI Controls ---
     back_button = ft.IconButton(

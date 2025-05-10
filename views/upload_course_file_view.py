@@ -1,8 +1,9 @@
 import flet as ft
 from datetime import datetime
-import os
+from collections import defaultdict
 from components.banner import create_banner
 from logic.file_reader import read_pdf
+
 # Colors and style constants
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"
@@ -14,12 +15,53 @@ PLACEHOLDER_DARK_HEADER = "#6D6D6D"
 CONFIRM_BUTTON_COLOR = ft.colors.LIME_700
 CANCEL_BUTTON_COLOR = ft.colors.RED_600
 DIALOG_BG_COLOR = ft.colors.WHITE
-
+STATS_CARD_COLOR = "#F5F5F5"
 
 file_students = {}
 
+
 def create_table_cell(text_content):
     return ft.DataCell(ft.Text(str(text_content), color=CELL_TEXT_COLOR, text_align=ft.TextAlign.RIGHT, size=13))
+
+
+def create_stats_card(title, value, icon):
+    return ft.Container(
+        ft.Column(
+            [
+                ft.Row(
+                    [
+                        ft.Text(title, size=14, color=TEXT_COLOR_DARK, weight=ft.FontWeight.W_500),
+                        ft.Icon(icon, color=PRIMARY_COLOR, size=18),
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ),
+                ft.Text(value, size=24, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
+            ],
+            spacing=5,
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH
+        ),
+        padding=ft.padding.all(15),
+        border_radius=8,
+        bgcolor=STATS_CARD_COLOR,
+        border=ft.border.all(1, ft.colors.with_opacity(0.2, TEXT_COLOR_DARK)),
+        expand=True,
+    )
+
+
+def create_faculty_row(faculty, count):
+    return ft.Row(
+        [
+            ft.Text(faculty, size=14, color=TEXT_COLOR_DARK, expand=True, text_align=ft.TextAlign.RIGHT),
+            ft.Container(
+                ft.Text(str(count), size=14, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
+                width=60,
+                alignment=ft.alignment.center_left
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        spacing=10
+    )
+
 
 def create_upload_course_file_view(page: ft.Page):
     file_path_field_ref = ft.Ref[ft.TextField]()
@@ -28,16 +70,23 @@ def create_upload_course_file_view(page: ft.Page):
     date_picker_ref = ft.Ref[ft.DatePicker]()
     confirmation_dialog_ref = ft.Ref[ft.AlertDialog]()
     selected_file_full_path = ft.Ref[str]()
-    data_table_ref = ft.Ref[ft.DataTable]()  # Ref for our datatable
+    data_table_ref = ft.Ref[ft.DataTable]()
+    stats_container_ref = ft.Ref[ft.Container]()
+    faculty_stats_ref = ft.Ref[ft.Column]()
 
     file_students['is_male'] = page.is_male
     ismale = file_students['is_male']
+
     # --- Table Columns ---
     columns = [
-        ft.DataColumn(ft.Text("الرقم المسلسل", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER), numeric=True),
-        ft.DataColumn(ft.Text("الاسم", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
-        ft.DataColumn(ft.Text("الرقم القومي", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
-        ft.DataColumn(ft.Text("الكليه", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
+        ft.DataColumn(ft.Text("الرقم المسلسل", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD,
+                              text_align=ft.TextAlign.CENTER), numeric=True),
+        ft.DataColumn(
+            ft.Text("الاسم", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
+        ft.DataColumn(
+            ft.Text("الرقم القومي", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
+        ft.DataColumn(
+            ft.Text("الكليه", color=HEADER_TEXT_COLOR, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT)),
     ]
 
     # Initially, table is empty
@@ -57,6 +106,86 @@ def create_upload_course_file_view(page: ft.Page):
         expand=False,
     )
 
+    # Faculty stats column
+    faculty_stats = ft.Column(
+        ref=faculty_stats_ref,
+        spacing=8,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH
+    )
+
+    # --- Stats Container ---
+    stats_container = ft.Container(
+        ref=stats_container_ref,
+        content=ft.Column(
+            [
+                ft.Text("إحصائيات الملفات", size=18, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
+                ft.Row(
+                    [
+                        create_stats_card("عدد الملفات المرفوعة", "0", ft.icons.INSERT_DRIVE_FILE),
+                        create_stats_card("إجمالي الطلاب", "0", ft.icons.PEOPLE_ALT),
+                        create_stats_card("عدد الكليات", "0", ft.icons.SCHOOL),
+                    ],
+                    spacing=15,
+                    width=700
+                ),
+                ft.Container(height=10),
+                ft.Container(
+                    ft.Column(
+                        [
+                            ft.Text("توزيع الطلاب حسب الكلية:", size=16, weight=ft.FontWeight.BOLD,
+                                    color=PRIMARY_COLOR),
+                            ft.Container(
+                                faculty_stats,
+                                padding=ft.padding.symmetric(vertical=10, horizontal=15),
+                                bgcolor=STATS_CARD_COLOR,
+                                border_radius=8,
+                                width=700
+                            ),
+                        ],
+                        spacing=8
+                    ),
+                    visible=False
+                )
+            ],
+            spacing=8,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        ),
+        visible=False,
+        padding=ft.padding.only(bottom=15)
+    )
+
+    def update_stats():
+        students = file_students.get('students', [])
+        if not students:
+            stats_container_ref.current.visible = False
+            return
+
+        # Count faculties and students per faculty
+        faculty_counts = defaultdict(int)
+        for student in students:
+            faculty_counts[student['faculty']] += 1
+
+        # Update stats cards
+        stats_content = stats_container_ref.current.content
+        stats_content.controls[1].controls[0].content.controls[1].value = str(
+            len(selected_file_full_path.current) if isinstance(selected_file_full_path.current, list) else 1)
+        stats_content.controls[1].controls[1].content.controls[1].value = str(len(students))
+        stats_content.controls[1].controls[2].content.controls[1].value = str(len(faculty_counts))
+
+        # Update faculty breakdown
+        faculty_stats_ref.current.controls = []
+        if faculty_counts:
+            stats_content.controls[3].visible = True
+            # Sort faculties by student count (descending)
+            sorted_faculties = sorted(faculty_counts.items(), key=lambda x: x[1], reverse=True)
+            for faculty, count in sorted_faculties:
+                faculty_stats_ref.current.controls.append(create_faculty_row(faculty, count))
+        else:
+            stats_content.controls[3].visible = False
+
+        stats_container_ref.current.visible = True
+        page.update()
+
     # --- Handlers ---
     def handle_confirm_upload(e):
         if confirmation_dialog_ref.current:
@@ -71,7 +200,7 @@ def create_upload_course_file_view(page: ft.Page):
             page.update()
             return
         page.file_students = file_students
-        page.go("/edit_course_data")  # Go to next view after confirm
+        page.go("/edit_course_data")
 
     def handle_cancel_upload(e):
         if confirmation_dialog_ref.current:
@@ -84,19 +213,20 @@ def create_upload_course_file_view(page: ft.Page):
         page.go("/register_course_options")
 
     def on_file_picked(e: ft.FilePickerResultEvent):
-        print(e.files)
+        if not e.files:
+            return
+
         all_students = []
+        selected_file_full_path.current = []
         for file in e.files:
-            selected_file = file
+            selected_file_full_path.current.append(file.path)
             if file_path_field_ref.current:
-                file_path_field_ref.current.value = selected_file.name
-                selected_file_full_path.current = selected_file.path
+                file_path_field_ref.current.value = file.name
                 file_path_field_ref.current.error_text = None
 
-                # ---- Main PDF parsing Logic ----
-                students, faculty = read_pdf(selected_file.path, ismale)
-                for std in students:
-                    all_students.append(std)
+                # Parse PDF
+                students, faculty = read_pdf(file.path, ismale)
+                all_students.extend(students)
 
         file_students['students'] = all_students
         new_rows = [
@@ -109,6 +239,7 @@ def create_upload_course_file_view(page: ft.Page):
             for student in all_students
         ]
         data_table_ref.current.rows = new_rows
+        update_stats()
         page.update()
 
     def pick_file(e):
@@ -116,7 +247,7 @@ def create_upload_course_file_view(page: ft.Page):
             file_picker_ref.current.pick_files(
                 dialog_title="اختر ملف بيانات الدورة",
                 allow_multiple=True,
-                allowed_extensions=["pdf"]  # Only PDF!
+                allowed_extensions=["pdf"]
             )
         else:
             sb = ft.SnackBar(ft.Text("خطأ في أداة اختيار الملفات"), open=True, bgcolor=ft.colors.RED)
@@ -217,8 +348,10 @@ def create_upload_course_file_view(page: ft.Page):
         icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color=PRIMARY_COLOR,
         tooltip="العودة", on_click=go_back, icon_size=30
     )
-    title1 = ft.Text("تسجيل دورة جديدة", size=32, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR, text_align=ft.TextAlign.CENTER)
-    title2 = ft.Text("اضافة ملف وتاريخ الدورة", size=20, weight=ft.FontWeight.W_500, color=TEXT_COLOR_DARK, text_align=ft.TextAlign.CENTER)
+    title1 = ft.Text("تسجيل دورة جديدة", size=32, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR,
+                     text_align=ft.TextAlign.CENTER)
+    title2 = ft.Text("اضافة ملف وتاريخ الدورة", size=20, weight=ft.FontWeight.W_500, color=TEXT_COLOR_DARK,
+                     text_align=ft.TextAlign.CENTER)
 
     file_path_field = ft.TextField(
         ref=file_path_field_ref,
@@ -287,8 +420,9 @@ def create_upload_course_file_view(page: ft.Page):
             ft.Container(height=20),
             ft.Row([info_text], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=15),
+            stats_container,
             ft.Row(
-                [ft.Container(content=data_table)],
+                [ft.Container(content=data_table, width=700)],
                 alignment=ft.MainAxisAlignment.CENTER
             ),
             ft.Container(height=30),
