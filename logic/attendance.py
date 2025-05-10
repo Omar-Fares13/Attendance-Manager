@@ -5,6 +5,7 @@ from typing import List, Optional
 from models import Attendance
 from db import get_session
 
+
 # Create attendance record
 def create_attendance(record: Attendance) -> Attendance:
     with next(get_session()) as session:
@@ -13,17 +14,20 @@ def create_attendance(record: Attendance) -> Attendance:
         session.refresh(record)
         return record
 
+
 # Get all records
 def get_all_attendance() -> List[Attendance]:
     with next(get_session()) as session:
         records = session.exec(select(Attendance)).all()
         return records
 
+
 # Get attendance by student ID
 def get_attendance_by_student_id(student_id: int) -> List[Attendance]:
     with next(get_session()) as session:
         statement = select(Attendance).where(Attendance.student_id == student_id)
         return session.exec(statement).all()
+
 
 # Update attendance record
 def update_attendance(record_id: int, updated_fields: dict) -> Optional[Attendance]:
@@ -37,6 +41,7 @@ def update_attendance(record_id: int, updated_fields: dict) -> Optional[Attendan
         session.commit()
         session.refresh(record)
         return record
+
 
 # Delete attendance record
 def delete_attendance(record_id: int) -> bool:
