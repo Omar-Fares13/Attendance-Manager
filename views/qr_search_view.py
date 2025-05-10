@@ -4,9 +4,11 @@ from components.banner import create_banner
 from utils.assets import ft_asset # Only needed if using specific assets later
 from models import Student, Faculty
 from logic.students import get_students, get_student_by_id
+from logic.faculties import get_all_faculties
 from logic.course import get_latest_course
 from logic.file_reader import normalize_arabic
 search_attributes = {}
+faculty_lookup = {}
 
 # --- Helper Function for Search TextFields ---
 def create_search_field(label: str, width: float = None, expand: bool = False, name :str = "", update = None):
@@ -70,6 +72,10 @@ def create_data_cell(content: ft.Control):
 def create_qr_search_student_view(page: ft.Page):
     """Creates the Flet View for the Search Student screen."""
 
+    faculties = get_all_faculties()
+    for fac in faculties:
+        faculty_lookup[fac.id] = fac.name
+
     # --- Controls ---
     # Back button navigation
     search_attributes['is_male'] = page.is_male == '1'
@@ -118,7 +124,7 @@ def create_qr_search_student_view(page: ft.Page):
                 create_data_cell(ft.Text(stu.seq_number)),
                 create_data_cell(ft.Text(stu.faculty.name if stu.faculty else "-")),
                 create_data_cell(ft.Text(stu.phone_number)),
-                create_data_cell(ft.Text(stu.qr_code)),
+                create_data_cell(ft.Text(stu.location)),
             ]
             rows.append(ft.DataRow(cells=cells))
 
@@ -147,7 +153,23 @@ def create_qr_search_student_view(page: ft.Page):
     )
     phone_field = create_search_field("البحث باستخدام رقم الهاتف", expand=True, update = update_attribute, name = "phone_number")
     serial_field = create_search_field("البحث باستخدام رقم المسلسل", width=200, update = update_attribute, name = "seq_num")
-    faculty_field = create_search_field("البحث باستخدام الكلية", width=200, update = update_attribute, name = "faculty")
+    faculty_field = ft.Dropdown(
+    label="البحث باستخدام الكلية",
+    width=200,
+    options=[
+        ft.dropdown.Option(key=str(f.id), text=f.name)
+        for f in faculties
+    ],
+    value=None,            # no initial selection
+    border_color="#B58B18",
+    focused_border_color="#B58B18",
+    border_radius=8,
+    content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
+    on_change=lambda e: update_attribute(
+        "faculty_id",
+        int(e.control.value) if e.control.value else None
+    )
+)
     
     search_field_row2 = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
@@ -216,7 +238,7 @@ def create_qr_search_student_view(page: ft.Page):
         create_header_cell("رقم المسلسل"), # Serial
         create_header_cell("الكلية"),     # Faculty
         create_header_cell("رقم الهاتف"),  # Phone
-        create_header_cell("م."),         # Misc/Notes
+        create_header_cell("محل السكن"),         # Misc/Notes
     ]
 
 

@@ -24,6 +24,7 @@ def create_form_field(label: str, name : str):
         text_align=ft.TextAlign.RIGHT,
         label_style=ft.TextStyle(color="#B58B18", size=14), # Gold label
         border_color="#B58B18", # Gold border
+        color="#000000",
         focused_border_color="#B58B18", # Gold focus border
         bgcolor=ft.Colors.WHITE, # White background
         border_radius=8,
@@ -99,7 +100,7 @@ def create_add_student_view(page: ft.Page):
     def save_data(e):
         print("Save button clicked!")
         create_student_from_dict(add_attributes)
-        page.open(ft.SnackBar(ft.Text("تم حفظ التعديلات (محاكاة)")))
+        page.open(ft.SnackBar(ft.Text("تم حفظ التعديلات")))
         page.update()
         print(add_attributes)
         go_back(None) # Simulate going back after save

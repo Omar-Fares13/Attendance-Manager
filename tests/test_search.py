@@ -1,4 +1,4 @@
-from logic.students import get_students
+from logic.students import get_students,create_student
 
 students = get_students({"name" : "ali"}) 
 print(students)
