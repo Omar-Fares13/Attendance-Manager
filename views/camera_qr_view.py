@@ -229,7 +229,15 @@ def create_camera_qr_view(page: ft.Page):
             if stop_camera_event.is_set():
                 return
 
-            cap = cv2.VideoCapture(0)
+            # Modified line - try DSHOW backend first
+            cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            time.sleep(1)  # Added delay
+
+            if not cap.isOpened():
+                # Fallback to default if DSHOW fails
+                cap = cv2.VideoCapture(0)
+                time.sleep(1)
+
             if not cap.isOpened():
                 print("Error: Could not open camera.")
                 error_msg = "خطأ: لم يتم العثور على كاميرا أو لا يمكن فتحها."
@@ -240,6 +248,11 @@ def create_camera_qr_view(page: ft.Page):
                 camera_error_message.update()
                 camera_feed_image.update()
                 return
+
+            # Set a reasonable resolution
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
 
             camera_error_message.visible = False
             camera_feed_image.visible = True
