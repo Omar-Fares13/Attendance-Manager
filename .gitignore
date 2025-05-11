@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 
+# PyCharm
+.idea/
+
+
 # Env
 .env
 .venv/
