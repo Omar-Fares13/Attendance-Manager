@@ -19,6 +19,8 @@ course_lookup = {}
 # --- Placeholder Functions ---
 # It's better practice to access controls via references instead of deep indexing
 # We'll create references in the create_report_course_view function
+
+
 def course_title(course):
     title = "دورة "
     title += str(course.start_date)
@@ -37,11 +39,14 @@ def submit_report_request(e: ft.ControlEvent):
     course_id = controls_dict["course_id"].value
     college = controls_dict["college"].value
     student_name = controls_dict["student_name"].value
+    report_type = controls_dict["report_type"].value
 
     print("Submit Report Request Clicked!")
     print(f"  Course ID: {course_id}")
     print(f"  College: {college}")
     print(f"  Student Name: {student_name}")
+    print(f"  Student Name: {report_type}")
+
 
     # Add logic here to generate/fetch the report based on selections
     page.course_id = course_id
@@ -51,7 +56,13 @@ def submit_report_request(e: ft.ControlEvent):
         page.faculty_id = None
     page.student_name = student_name
     page.course_name = course_lookup[course_id]
-    page.go('/report')
+
+    # Navigate based on report type
+    if report_type == "type1":
+        page.go("/report")  # Existing page
+    else:
+        page.go("/report_alt")  # New page you'll define later
+
 def go_back_to_dashboard(e: ft.ControlEvent):
     """Navigates back to the dashboard."""
     e.page.go("/dashboard")
@@ -70,7 +81,7 @@ def create_report_course_view(page: ft.Page):
         icon_size=30,
         on_click=go_back_to_dashboard
     )
-    
+
     # --- Title ---
     title = ft.Text(
         "استخراج تقرير دورة",
@@ -95,7 +106,7 @@ def create_report_course_view(page: ft.Page):
         text_align=ft.TextAlign.RIGHT,
         options=[
         ft.dropdown.Option(
-            text=course_title(c), 
+            text=course_title(c),
             key=c.id,
             text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
         )
@@ -116,7 +127,7 @@ def create_report_course_view(page: ft.Page):
         # hint_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for hint (might not work perfectly cross-platform)
         options=[
         ft.dropdown.Option(
-            text=f.name, 
+            text=f.name,
             key=f.id,
             text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
         )
@@ -134,11 +145,27 @@ def create_report_course_view(page: ft.Page):
         text_align=ft.TextAlign.RIGHT,
     )
 
+    # --- Report Type Dropdown ---
+    report_type_dropdown = ft.Dropdown(
+        hint_text="نوع التقرير",  # Report Type
+        border_color=FORM_BORDER_COLOR,
+        border_radius=FIELD_BORDER_RADIUS,
+        bgcolor=FIELD_BGCOLOR,
+        color="#000000",
+        hint_style=ft.TextStyle(color="#000000"),
+        options=[
+            ft.dropdown.Option(key="type1", text="نوع التقرير 1"),  # ← placeholder
+            ft.dropdown.Option(key="type2", text="نوع التقرير 2")  # ← placeholder
+        ],
+        value="type1"  # default value (optional)
+    )
+
     # Store controls for easier access in submit function
     controls_dict = {
         "course_id": course_dropdown,
         "college": college_dropdown,
         "student_name": student_name_field,
+        "report_type": report_type_dropdown,
     }
 
     # --- Form Container ---
@@ -150,6 +177,7 @@ def create_report_course_view(page: ft.Page):
         width=450, # Adjust width as needed
         content=ft.Column(
             [
+                report_type_dropdown,
                 course_dropdown,
                 college_dropdown,
                 student_name_field

@@ -1,9 +1,13 @@
-# views/report_view.py
+# views/report_view_days.py
 
 import flet as ft
+
+from logic import course
 from logic.students import create_students_from_file
 from components.banner import create_banner
-from logic.file_write import get_student_data, create_excel
+from logic.file_write import create_excel, get_student_data
+from logic.attendance import get_attendance_by_student_id
+from datetime import date, time, timedelta
 
 # --- Define Colors & Fonts ---
 BG_COLOR = "#E3DCCC"
@@ -37,31 +41,68 @@ def create_uneditable_cell(value: str, ref: ft.Ref[ft.TextField]):
     )
 
 
-def create_report_view(page: ft.Page):
-    headers = ["م", "الاسم", "الرقم القومي", "الكلية", "انذارات", "حضور", "غياب", "الحالة", "ملاحظات"]
+def create_report_alt_view(page: ft.Page):
+    # Define the start and end dates for the report (you might want to make this dynamic)
+    start_date = date(2025, 5, 10)  # Example start date (Saturday)
+    end_date = date(2025, 5, 16)  # Example end date (Friday)
+    delta = timedelta(days=1)
+    current_date = start_date
+    report_dates = {}
+    day_names = ["سبت", "أحد", "اتنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"]
+
+    headers = ["م", "الاسم", "الرقم القومي"]
+    while current_date <= end_date:
+        day_index = current_date.weekday()
+        if day_index < 6:  # Exclude Friday (weekday 4 is Thursday, 5 is Friday)
+            day_name = day_names[day_index]
+            headers.extend([f"{day_name} حضور", f"{day_name} انصراف"])
+            report_dates[current_date] = day_name
+        current_date += delta
+
     data_rows = get_student_data(page.course_id, page.faculty_id, page.student_name)
-    data_rows = [row[:] for row in data_rows]
+    processed_data_rows = []
+
+    for row in data_rows:
+        student_id = row[0]  # Assuming student ID is the first element
+        student_name = row[1]
+        national_id = row[2]
+        attendance_records = get_attendance_by_student_id(student_id)
+        student_data = [student_id, student_name, national_id]
+        attendance_by_date = {record.date: record for record in attendance_records}
+
+        for report_date in report_dates:
+            arrival = None
+            leave = None
+            if report_date in attendance_by_date:
+                arrival = attendance_by_date[report_date].arrival_time.strftime("%H:%M")
+                if attendance_by_date[report_date].leave_time:
+                    leave = attendance_by_date[report_date].leave_time.strftime("%H:%M")
+            student_data.extend([arrival or "", leave or ""])
+        processed_data_rows.append(student_data)
 
     text_field_refs = [
-        [ft.Ref[ft.TextField]() for _ in headers] for _ in data_rows
+        [ft.Ref[ft.TextField]() for _ in headers] for _ in processed_data_rows
     ]
 
     def go_back(e):
         page.go("/report_course")
 
     def extract_pdf(e):
-        print("pdf")
+        print("PDF extraction for alt view")
 
     def extract_xlsx(e):
-        failing_students = [row for row in data_rows if row[-2] == "راسب"]
-        passing_students = [row for row in data_rows if row[-2] != "راسب"]
+        # Modify this to use the new headers and processed data
+        failing_students_indices = [-2]  # Assuming the failing status is still in the second to last column
+        failing_students = [row for row in processed_data_rows if any(row[i] == "راسب" for i in failing_students_indices)]
+        passing_students = [row for row in processed_data_rows if not any(row[i] == "راسب" for i in failing_students_indices)]
 
         sorted_data = failing_students + passing_students
 
         summary_row = ["-" for _ in headers]
-        summary_row[-2] = f"إجمالي الراسب: {len(failing_students)} | إجمالي الناجح: {len(passing_students)}"
+        # You might need to adjust the index based on where the pass/fail status is now
+        summary_row[3] = f"إجمالي الراسب: {len(failing_students)} | إجمالي الناجح: {len(passing_students)}" # Adjust index
 
-        create_excel(headers, [summary_row] + sorted_data, page.course_name)
+        create_excel(headers,sorted_data, page.course_name + "_بالايام")
 
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED,
@@ -72,7 +113,7 @@ def create_report_view(page: ft.Page):
     )
 
     title = ft.Text(
-        "تقرير",
+        "تقرير مفصل بالايام",
         size=32,
         weight=ft.FontWeight.BOLD,
         color=PRIMARY_COLOR,
@@ -100,11 +141,11 @@ def create_report_view(page: ft.Page):
 
     dt_rows = []
 
-    for r_idx, row_data in enumerate(data_rows):
+    for r_idx, row_data in enumerate(processed_data_rows):
         dt_cells = []
         for c_idx, cell_value in enumerate(row_data):
             tf_ref = text_field_refs[r_idx][c_idx]
-            dt_cells.append(ft.DataCell(create_uneditable_cell(cell_value, tf_ref)))
+            dt_cells.append(ft.DataCell(create_uneditable_cell(str(cell_value), tf_ref)))
         dt_rows.append(ft.DataRow(cells=dt_cells, color=TABLE_CELL_BG))
 
     data_table = ft.DataTable(
@@ -187,7 +228,7 @@ def create_report_view(page: ft.Page):
     )
 
     return ft.View(
-        route="/report",
+        route="/report_alt",
         bgcolor=BG_COLOR,
         floating_action_button=scroll_down_fab,
         floating_action_button_location=ft.FloatingActionButtonLocation.END_FLOAT,

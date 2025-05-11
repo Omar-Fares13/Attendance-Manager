@@ -27,6 +27,7 @@ from views.edit_course_data_view import create_edit_course_data_view
 from views.delete_all_confirmation_view import create_delete_confirmation_view
 from views.setup_view import create_setup_view
 from views.report_view import create_report_view
+from views.report_view_days import create_report_alt_view
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
     create_departure_mark_view
@@ -166,6 +167,8 @@ def main(page: ft.Page):
              page.views.append(create_edit_student_view(page))
         elif actual_route == '/report':
             page.views.append(create_report_view(page))
+        elif actual_route == '/report_alt':
+            page.views.append(create_report_alt_view(page))
         # QR Code Flow
         elif actual_route == "/camera_qr":
             page.views.append(create_camera_qr_view(page))
