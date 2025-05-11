@@ -22,6 +22,7 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 
 attribs = {}
 
+content_ref = ft.Ref[ft.Column]()
 
 def create_uneditable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells with dark text."""
@@ -189,6 +190,7 @@ def create_report_view(page: ft.Page):
     )
 
     excel_button = ft.ElevatedButton(
+        key="confirm_section",
         text="استخراج ملف Excel",
         icon=ft.icons.CHECK_CIRCLE_OUTLINE,
         bgcolor=BUTTON_CONFIRM_COLOR,
@@ -197,6 +199,16 @@ def create_report_view(page: ft.Page):
         width=220,
         on_click=extract_xlsx,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+    )
+
+    scroll_down_fab = ft.FloatingActionButton(
+    icon=ft.icons.ARROW_DOWNWARD_ROUNDED,
+    tooltip="اذهب إلى الأسفل",
+    on_click=lambda e: content_ref.current.scroll_to(
+        key="confirm_section",
+        duration=400,
+        curve=ft.AnimationCurve.EASE_IN_OUT
+        )
     )
 
     # --- Banner ---
@@ -226,6 +238,7 @@ def create_report_view(page: ft.Page):
             ft.Row([excel_button], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=30),
         ],
+        ref=content_ref,
         scroll=ft.ScrollMode.ADAPTIVE,
         expand=True,
         spacing=20
@@ -235,6 +248,8 @@ def create_report_view(page: ft.Page):
     return ft.View(
         route="/report",
         bgcolor=BG_COLOR,
+        floating_action_button=scroll_down_fab,                # ← add this
+        floating_action_button_location=ft.FloatingActionButtonLocation.END_FLOAT,
         padding=0,
         controls=[
             ft.Column(
