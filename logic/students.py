@@ -7,7 +7,6 @@ from sqlalchemy.orm import joinedload, selectinload
 from DTOs.StudentCreateDTO import StudentCreateDTO
 import uuid
 from sqlalchemy import func
-from logic.faculties import create_faculty
 from logic.course import create_course
 from logic.faculties import get_faculties, create_faculty
 # Create

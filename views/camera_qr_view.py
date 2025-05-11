@@ -54,6 +54,28 @@ student = {}
 edit_attributes = {}
 
 
+def load_by_seq(page: ft.Page, seq_str: str):
+    try:
+        seq = int(seq_str)
+    except:
+        show_snackbar(page, "رقم المسلسل غير صالح.", ft.colors.RED_700)
+        return
+
+    # assume you have or add a get_student_by_seq_number()
+    from logic.students import get_student_by_seq_number
+    stu = get_student_by_seq_number(seq)
+    if not stu:
+        show_snackbar(page, "لم يُعثر على طالب بهذا الرقم.", ft.colors.RED_700)
+        return
+
+    # Set page.student_id and force a re-build of the view
+    page.student_id = stu.id
+    # Remove current view and push a fresh one
+    page.views.pop()  
+    page.views.append(create_camera_qr_view(page))
+    page.update()
+
+
 def update_field(name : str, value : str):
     if not value:
         edit_attributes.pop(name, None)
@@ -293,7 +315,6 @@ def create_camera_qr_view(page: ft.Page):
             ft.Row([ft.Text("بيانات الطالب", size=18, weight=ft.FontWeight.BOLD, color="#B58B18")], alignment=ft.MainAxisAlignment.CENTER),
             ft.Divider(height=1, color=ft.colors.with_opacity(0.5, "#B58B18")),
             create_data_row("الاسم:", student_data.name),
-            create_data_row("ID الطالب:", student_data.id),
             create_data_row("الرقم القومي:", student_data.national_id),
             create_data_row("الكلية:", student_data.faculty.name),
             create_data_row("مسلسل:", student_data.seq_number),
@@ -407,21 +428,34 @@ def create_camera_qr_view(page: ft.Page):
             print("Error: No frame available.")
             show_snackbar(page, "لا يوجد إطار من الكاميرا للالتقاط.", ft.colors.AMBER_700)
 
-
-
-    def on_keyboard_event(e: ft.KeyboardEvent):
-        # Flet gives you e.key as e.g. "Enter" or " "
-        if e.key in (" "):
-            capture_click(e)
-
-    
-    page.on_keyboard_event = on_keyboard_event
-
     
     # --- Buttons ---
     show_qr_btn = ft.ElevatedButton("عرض QR", icon=ft.icons.QR_CODE_2, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#B58B18", color=ft.colors.WHITE, height=40, on_click=show_qr_click)
     return_button_main = ft.ElevatedButton("الرجوع", icon=ft.icons.ARROW_BACK, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#5C544A", color=ft.colors.WHITE, height=45, on_click=go_back)
     capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT,autofocus=True, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
+
+    seq_input = ft.TextField(
+        label="رقم المسلسل",
+        width=140,
+        text_align=ft.TextAlign.RIGHT,
+        border_color="#B58B18",
+        color="#000000",
+        focused_border_color="#B58B18",
+        border_radius=8,
+        keyboard_type=ft.KeyboardType.NUMBER,
+        content_padding=ft.padding.symmetric(horizontal=10, vertical=5),
+    )
+    load_btn = ft.ElevatedButton(
+        text="تحميل",
+        icon=ft.icons.SEARCH,
+        bgcolor="#B58B18",
+        color=ft.colors.WHITE,
+        on_click=lambda e: load_by_seq(e.page, seq_input.value),
+    )
+
+    # place them in a Row above everything else:
+    seq_row = ft.Row([seq_input, load_btn], spacing=10, alignment=ft.MainAxisAlignment.CENTER)
+
 
     # --- Panel Layouts ---
     left_panel = ft.Container(
@@ -484,6 +518,7 @@ def create_camera_qr_view(page: ft.Page):
         [
             ft.Container(content=ft.Row([back_button_top_left]), padding=ft.padding.only(top=10, left=20, right=20)),
             ft.Container(content=ft.Row([page_title], alignment=ft.MainAxisAlignment.CENTER), padding=ft.padding.only(bottom=15)),
+            ft.Container(content=seq_row, padding=ft.padding.symmetric(vertical=10)),
             ft.Container(
                 content=main_panels_layout,
                 padding=ft.padding.symmetric(horizontal=30),
