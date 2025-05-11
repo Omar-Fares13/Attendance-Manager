@@ -43,13 +43,15 @@ def create_form_field(label: str, name: str, value: str):
 def create_attendance_table(page: ft.Page, student_id: int, course_start_date: date):
     """Creates a horizontal scrollable table showing attendance for each day."""
     attendance_records = get_attendance_by_student_id(student_id)
-    present_dates = {record.date for record in attendance_records}
+    present_dates = {}
+    for record in attendance_records:
+        present_dates[record.date] = (record.arrival_time, record.leave_time)
 
     # Generate all days of the course (2 weeks starting Saturday), skipping Fridays
     days = []
     current_date = course_start_date
     for week in range(1, 3):
-        for _ in range(7):  # Still iterate through 7 days to maintain week structure
+        for _ in range(7):
             weekday = current_date.weekday()
             if weekday != 4:
                 day_name = get_arabic_day_name(weekday)
@@ -67,7 +69,10 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
             )
         )
 
+    def to_h_m(t):
+        return f"{t.hour}:{t.minute}" if t else ""
     cells = []
+    arrivals, leaves = [], []
     for day_date, day_display in days:
         attended = day_date in present_dates
         icon_button = ft.IconButton(
@@ -79,10 +84,14 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
             icon_size=20
         )
         cells.append(ft.DataCell(icon_button))
-
+        arrivals.append(ft.DataCell(ft.Text(to_h_m(present_dates[day_date][0] if attended else ""), color="#000000")))
+        leaves.append(ft.DataCell(ft.Text(to_h_m(present_dates[day_date][1] if attended else ""), color="#000000")))
+    print(cells)
+    print(arrivals)
+    print(leaves)
     table = ft.DataTable(
         columns=columns,
-        rows=[ft.DataRow(cells=cells)],
+        rows=[ft.DataRow(cells=cells), ft.DataRow(cells=arrivals), ft.DataRow(cells=leaves)],
         heading_row_color=ft.colors.GREY_200,
         heading_row_height=40,
         horizontal_margin=15,
