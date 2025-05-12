@@ -124,9 +124,20 @@ def create_search_student_view(page: ft.Page):
                 tooltip=f"Action for {stu.name}",
                 on_click=lambda e: edit_data_click(e.control.data)
             )
+            # Note button for this student - NEW!
+            note_button = ft.ElevatedButton(
+                data=stu.id,
+                text="ملاحظة",
+                bgcolor="#C83737",  # Red color from your note view
+                color=ft.colors.WHITE,
+                width=70, height=35,
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
+                tooltip=f"إضافة ملاحظة لـ {stu.name}",
+                on_click=lambda e: add_note_click(e.control.data)
+            )
             
             buttons_row = ft.Row(
-                [update_button],
+                [update_button,note_button],
                 spacing=8,
                 alignment=ft.MainAxisAlignment.CENTER
             )
@@ -144,18 +155,35 @@ def create_search_student_view(page: ft.Page):
 
         results_table.rows = rows
         results_table.update()
-
+        
     def update_attribute(name, value):
         global page_id
         page_id = 0
         print('=' * 80)
-        if not value:
-            search_attributes.pop(name, None)
+        
+        # Special handling for gender filter
+        if name == "is_male":
+            if value is None:
+                # Remove the filter if None
+                search_attributes.pop(name, None)
+            else:
+                # Ensure the value is explicitly set as a boolean (not None)
+                search_attributes[name] = bool(value)
         else:
-            # Normalize Arabic fields so search matches storage
-            if name in ("name", "faculty", "qr_code", "national_id"):
-                value = normalize_arabic(value)
-            search_attributes[name] = value
+            # Regular attribute handling for other fields
+            if not value:
+                search_attributes.pop(name, None)
+            else:
+                # Normalize Arabic fields so search matches storage
+                if name in ("name", "faculty", "qr_code", "national_id"):
+                    value = normalize_arabic(value)
+                search_attributes[name] = value
+        
+        # Print debug info to confirm values
+        print(f"Search attributes after update:")
+        for k, v in search_attributes.items():
+            print(f"  {k}: {v} (type: {type(v)})")
+            
         search()
 
     national_id_field = create_search_field("البحث باستخدام الرقم القومي", expand=True, update=update_attribute,
@@ -173,21 +201,22 @@ def create_search_student_view(page: ft.Page):
 
     # Add gender dropdown
     gender_field = ft.Dropdown(
-        label="النوع",
-        width=200,
-        options=[
-            ft.dropdown.Option(key="male", text="ذكر"),
-            ft.dropdown.Option(key="female", text="انثى")
-        ],
-        value=None,
-        border_color="#B58B18",
-        focused_border_color="#B58B18",
-        text_style=ft.TextStyle(color="#000000"),  # Dark font color
-        border_radius=8,
-        content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
-        on_change=lambda e: update_attribute(
-            "is_male",
-            True if e.control.value == "male" else False if e.control.value == "female" else None
+    label="النوع",
+    width=200,
+    options=[
+        ft.dropdown.Option(key="male", text="ذكر"),
+        ft.dropdown.Option(key="female", text="انثى")
+    ],
+    value=None,
+    border_color="#B58B18",
+    focused_border_color="#B58B18",
+    text_style=ft.TextStyle(color="#000000"),
+    border_radius=8,
+    content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
+    on_change=lambda e: update_attribute(
+        "is_male",
+        True if e.control.value == "male" else 
+        (False if e.control.value == "female" else None)
         )
     )
 
@@ -245,9 +274,11 @@ def create_search_student_view(page: ft.Page):
         page.student_id = student_id
         page.go(f"/login/edit_student")  # Navigate to the edit student view route
 
-    def note_student(student_id: int = 1):
+    def add_note_click(student_id: int):
+        """Navigate to add note view with selected student ID"""
+        print(f"Add Note Clicked for student ID: {student_id}")
         page.student_id = student_id
-        page.go("/add_note")
+        page.go("/add_note")  # Navigate to the add note view
 
     # Button Styling
     button_style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8))

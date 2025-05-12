@@ -5,9 +5,19 @@ import flet as ft
 from logic import course
 from logic.students import create_students_from_file
 from components.banner import create_banner
-from logic.file_write import create_excel, get_student_data
+from logic.file_write import extract_xlsx
 from logic.attendance import get_attendance_by_student_id
 from datetime import date, time, timedelta
+from logic.attendance import get_attendance_data
+
+# Set locale for Arabic weekday names
+try:
+    locale.setlocale(locale.LC_TIME, 'ar_AE.UTF-8')  # For Unix/Linux
+except:
+    try:
+        locale.setlocale(locale.LC_TIME, 'Arabic')  # For Windows
+    except:
+        pass  # Fallback - will use hardcoded Arabic day names if locale fails
 
 # --- Define Colors & Fonts ---
 BG_COLOR = "#E3DCCC"
@@ -21,6 +31,10 @@ BUTTON_CONFIRM_COLOR = ft.colors.GREEN_700
 BUTTON_CANCEL_COLOR = ft.colors.GREY_700
 BUTTON_TEXT_COLOR = ft.colors.WHITE
 
+TABLE_ALT_ROW_BG = "#EFEFEF"
+ATTENDANCE_PRESENT_BG = "#008000"  # Light green
+ATTENDANCE_ABSENT_BG = "#FF0000"   # Light red
+
 FONT_FAMILY_REGULAR = "Tajawal"
 FONT_FAMILY_BOLD = "Tajawal-Bold"
 
@@ -28,82 +42,230 @@ attribs = {}
 
 content_ref = ft.Ref[ft.Column]()
 
+def get_report_dates(page=None, course_id=None):
+    """
+    Generate 12 school days (Saturday through Thursday, skipping Fridays) 
+    starting from the course start date
+    
+    Args:
+        page: Optional Flet page object that may contain course_id
+        course_id: Optional course ID to use directly
+        
+    Returns:
+        List of 12 date objects representing school days
+    """
+    from logic.course import get_latest_course
+    
+    # Get course ID from parameters or page object
+    if course_id is None and page is not None:
+        course_id = getattr(page, 'course_id', None)
+    
+    # Get the course from database
+    if course_id:
+        from sqlmodel import Session, select
+        from models import Course
+        from db import get_session
+        
+        with next(get_session()) as session:
+            stmt = select(Course).where(Course.id == course_id)
+            course = session.exec(stmt).one_or_none()
+    else:
+        # Fallback to latest course if no course_id provided
+        course = get_latest_course()
+    
+    # Use course start date if available, otherwise use today
+    if course and course.start_date:
+        start_date = course.start_date
+    else:
+        # Fallback to today if no course found
+        today = date.today()
+        days_since_saturday = (today.weekday() + 2) % 7
+        start_date = today - timedelta(days=days_since_saturday)
+    
+    # Find the first Saturday on or after the start date
+    # If start_date is already a Saturday (weekday 5), use it directly
+    if start_date.weekday() != 5:  # Not a Saturday
+        days_until_saturday = (5 - start_date.weekday()) % 7
+        start_date = start_date + timedelta(days=days_until_saturday)
+    
+    report_dates = []
+    current_date = start_date
+    
+    while len(report_dates) < 12:
+        if current_date.weekday() != 4:  # Skip Fridays (4 is Friday in Python's weekday)
+            report_dates.append(current_date)
+        current_date += timedelta(days=1)
+    
+    return report_dates
 
-def create_uneditable_cell(value: str, ref: ft.Ref[ft.TextField]):
-    return ft.Text(
-        value=value,
-        text_align=ft.TextAlign.RIGHT,
-        size=14,
-        font_family=FONT_FAMILY_REGULAR,
-        color=TEXT_COLOR_DARK,
-        overflow=ft.TextOverflow.ELLIPSIS,
-        no_wrap=True
+
+def create_headers(dates):
+    """Create header texts for the data table"""
+    # Arabic day names (fallback if locale setting fails)
+    arabic_days = {
+        0: "اثنين",   # Monday
+        1: "ثلاثاء",  # Tuesday
+        2: "أربعاء",  # Wednesday
+        3: "خميس",    # Thursday
+        4: "جمعة",    # Friday
+        5: "سبت",     # Saturday
+        6: "أحد"      # Sunday
+    }
+    
+    headers = ["م", "الاسم", "الكلية"]  # seq, name, faculty
+    
+    for d in dates:
+        try:
+            # Try to get the Arabic day name using locale
+            day_name = d.strftime("%A")
+            if not any(c in 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي' for c in day_name):
+                # Fallback if locale didn't work
+                day_name = arabic_days[d.weekday()]
+        except:
+            # Fallback if locale didn't work
+            day_name = arabic_days[d.weekday()]
+            
+        date_str = f"{day_name}\n{d.strftime('%d/%m')}"
+        headers.append(date_str)
+    
+    return headers
+
+
+def create_data_columns(headers):
+    """Create DataColumn objects for the data table"""
+    return [
+        ft.DataColumn(
+            ft.Container(
+                content=ft.Text(
+                    value=header,
+                    color="white",
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                    size=14
+                ),
+                bgcolor=TABLE_HEADER_BG,
+                padding=ft.padding.all(8),
+                alignment=ft.alignment.center,
+                border_radius=ft.border_radius.all(4),
+                # width=100 if i > 2 else None  # Fixed width for date columns
+            ),
+            numeric=i == 0  # Only sequence number is numeric
+        ) for i, header in enumerate(headers)
+    ]
+
+
+def create_attendance_cell(arrival, departure):
+    """Create a cell with stacked arrival and departure times"""
+    # Determine background color based on attendance
+    has_attended = bool(arrival and departure)
+    bg_color = ATTENDANCE_PRESENT_BG if has_attended else ATTENDANCE_ABSENT_BG
+    
+    return ft.Container(
+        content=ft.Column(
+            [
+                ft.Text(
+                    value=arrival or "",
+                    size=14,
+                    text_align=ft.TextAlign.CENTER,
+                    weight=ft.FontWeight.BOLD if arrival else ft.FontWeight.NORMAL
+                ),
+                ft.Text(
+                    value=departure or "",
+                    size=14,
+                    text_align=ft.TextAlign.CENTER,
+                    weight=ft.FontWeight.BOLD if departure else ft.FontWeight.NORMAL
+                )
+            ],
+            spacing=4,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        ),
+        bgcolor=bg_color,
+        border_radius=ft.border_radius.all(4),
+        padding=ft.padding.symmetric(vertical=8),
+        alignment=ft.alignment.center,
+        height=60,
     )
 
 
+def create_data_rows(dates, processed_data):
+    """Create DataRow objects for the data table"""
+    rows = []
+    
+    for i, student in enumerate(processed_data):
+        cells = [
+            # Sequence number
+            ft.DataCell(
+                ft.Text(value=str(student['seq']), text_align=ft.TextAlign.CENTER,color="#000000")
+            ),
+            # Student name
+            ft.DataCell(
+                ft.Text(value=student['name'], text_align=ft.TextAlign.CENTER,color="#000000")
+            ),
+            # Faculty name
+            ft.DataCell(
+                ft.Text(value=student['faculty'], text_align=ft.TextAlign.CENTER,color="#000000")
+            )
+        ]
+        
+        # Add attendance cells for each date
+        for d in dates:
+            attendance_data = student['attendance'].get(d, {})
+            arrival = attendance_data.get('arrival', '')
+            departure = attendance_data.get('departure', '')
+            
+            cells.append(
+                ft.DataCell(
+                    create_attendance_cell(arrival, departure)
+                )
+            )
+        
+        # Alternate row background colors
+        bg_color = TABLE_ALT_ROW_BG if i % 2 == 1 else TABLE_CELL_BG
+        
+        rows.append(ft.DataRow(cells=cells, color=bg_color))
+    
+    return rows
+
+
 def create_report_alt_view(page: ft.Page):
-    # Define the start and end dates for the report (you might want to make this dynamic)
-    start_date = date(2025, 5, 10)  # Example start date (Saturday)
-    end_date = date(2025, 5, 16)  # Example end date (Friday)
-    delta = timedelta(days=1)
-    current_date = start_date
-    report_dates = {}
-    day_names = ["سبت", "أحد", "اتنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"]
-
-    headers = ["م", "الاسم", "الرقم القومي"]
-    while current_date <= end_date:
-        day_index = current_date.weekday()
-        if day_index < 6:  # Exclude Friday (weekday 4 is Thursday, 5 is Friday)
-            day_name = day_names[day_index]
-            headers.extend([f"{day_name} حضور", f"{day_name} انصراف"])
-            report_dates[current_date] = day_name
-        current_date += delta
-
-    data_rows = get_student_data(page.course_id, page.faculty_id, page.student_name)
-    processed_data_rows = []
-
-    for row in data_rows:
-        student_id = row[0]  # Assuming student ID is the first element
-        student_name = row[1]
-        national_id = row[2]
-        attendance_records = get_attendance_by_student_id(student_id)
-        student_data = [student_id, student_name, national_id]
-        attendance_by_date = {record.date: record for record in attendance_records}
-
-        for report_date in report_dates:
-            arrival = None
-            leave = None
-            if report_date in attendance_by_date:
-                arrival = attendance_by_date[report_date].arrival_time.strftime("%H:%M")
-                if attendance_by_date[report_date].leave_time:
-                    leave = attendance_by_date[report_date].leave_time.strftime("%H:%M")
-            student_data.extend([arrival or "", leave or ""])
-        processed_data_rows.append(student_data)
-
-    text_field_refs = [
-        [ft.Ref[ft.TextField]() for _ in headers] for _ in processed_data_rows
-    ]
+    """Create the main attendance report view"""
+    # Get dates for our report
+    report_dates = get_report_dates(page)
+    
+    # Create headers and columns
+    headers = create_headers(report_dates)
+    columns = create_data_columns(headers)
+    
+    # Sample data (in a real app, this would come from a database)
+    sample_data = get_attendance_data(page, report_dates)
+    
+    # Create data rows
+    rows = create_data_rows(report_dates, sample_data)
+    
+    # Create the data table
+    data_table = ft.DataTable(
+        columns=columns,
+        rows=rows,
+        border=ft.border.all(1, TABLE_BORDER_COLOR),
+        border_radius=ft.border_radius.all(8),
+        vertical_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
+        horizontal_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
+        heading_row_height=80,
+        data_row_min_height=60,
+        data_row_max_height=80,
+        divider_thickness=1,
+        column_spacing=10,
+    )
 
     def go_back(e):
         page.go("/report_course")
 
-    def extract_pdf(e):
-        print("PDF extraction for alt view")
 
-    def extract_xlsx(e):
-        # Modify this to use the new headers and processed data
-        failing_students_indices = [-2]  # Assuming the failing status is still in the second to last column
-        failing_students = [row for row in processed_data_rows if any(row[i] == "راسب" for i in failing_students_indices)]
-        passing_students = [row for row in processed_data_rows if not any(row[i] == "راسب" for i in failing_students_indices)]
-
-        sorted_data = failing_students + passing_students
-
-        summary_row = ["-" for _ in headers]
-        # You might need to adjust the index based on where the pass/fail status is now
-        summary_row[3] = f"إجمالي الراسب: {len(failing_students)} | إجمالي الناجح: {len(passing_students)}" # Adjust index
-
-        create_excel(headers,sorted_data, page.course_name + "_بالايام")
-
+    # Excel export button handler
+    def handle_excel_export(e):
+        extract_xlsx(e, page, report_dates, sample_data, headers)
+    
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED,
         icon_color=PRIMARY_COLOR,
@@ -121,65 +283,22 @@ def create_report_alt_view(page: ft.Page):
         text_align=ft.TextAlign.CENTER
     )
 
-    dt_columns = [
-        ft.DataColumn(
-            ft.Container(
-                padding=ft.padding.symmetric(horizontal=8, vertical=10),
-                alignment=ft.alignment.center_right,
-                content=ft.Text(
-                    header_text,
-                    color=TEXT_COLOR_HEADER,
-                    weight=ft.FontWeight.BOLD,
-                    size=14,
-                    font_family=FONT_FAMILY_BOLD,
-                    text_align=ft.TextAlign.RIGHT,
-                    overflow=ft.TextOverflow.ELLIPSIS,
-                ),
-            )
-        ) for header_text in headers
-    ]
 
-    dt_rows = []
-
-    for r_idx, row_data in enumerate(processed_data_rows):
-        dt_cells = []
-        for c_idx, cell_value in enumerate(row_data):
-            tf_ref = text_field_refs[r_idx][c_idx]
-            dt_cells.append(ft.DataCell(create_uneditable_cell(str(cell_value), tf_ref)))
-        dt_rows.append(ft.DataRow(cells=dt_cells, color=TABLE_CELL_BG))
-
+    # Create the data table
     data_table = ft.DataTable(
-        columns=dt_columns,
-        rows=dt_rows,
+        columns=columns,
+        rows=rows,
         border=ft.border.all(1, TABLE_BORDER_COLOR),
         border_radius=ft.border_radius.all(8),
         vertical_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
         horizontal_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
-        sort_ascending=True,
-        heading_row_color=TABLE_HEADER_BG,
-        heading_row_height=50,
-        data_row_max_height=50,
-        divider_thickness=0,
-        horizontal_margin=10,
-        show_checkbox_column=False,
+        heading_row_height=80,
+        data_row_min_height=60,
+        data_row_max_height=80,
+        divider_thickness=1,
+        column_spacing=10,
     )
 
-    table_container = ft.Container(
-        content=data_table,
-        border_radius=ft.border_radius.all(8),
-        expand=True
-    )
-
-    pdf_button = ft.ElevatedButton(
-        text="استخراج ملف PDF",
-        icon=ft.icons.CHECK_CIRCLE_OUTLINE,
-        bgcolor=BUTTON_CONFIRM_COLOR,
-        color=BUTTON_TEXT_COLOR,
-        height=50,
-        width=220,
-        on_click=extract_pdf,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
-    )
 
     excel_button = ft.ElevatedButton(
         key="confirm_section",
@@ -189,7 +308,7 @@ def create_report_alt_view(page: ft.Page):
         color=BUTTON_TEXT_COLOR,
         height=50,
         width=220,
-        on_click=extract_xlsx,
+        on_click=handle_excel_export,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
     )
 
@@ -216,7 +335,7 @@ def create_report_alt_view(page: ft.Page):
                 padding=ft.padding.symmetric(horizontal=30),
                 alignment=ft.alignment.center
             ),
-            table_container,
+            data_table,
             ft.Container(height=30),
             ft.Row([excel_button], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=30),

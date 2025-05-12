@@ -1,25 +1,23 @@
 # views/report_course_view.py
 import flet as ft
-from components.banner import create_banner # Assuming your banner is reusable
+from components.banner import create_banner
 from logic.faculties import get_all_faculties
 from logic.course import get_all_courses
-# --- Constants for Styling (Adjusted based on image) ---
-PAGE_BGCOLOR = "#E3DCCC" # Light beige/tan background from image
-FORM_BORDER_COLOR = "#B58B18" # Gold color from image border/text
+
+# --- Constants for Styling ---
+PAGE_BGCOLOR = "#E3DCCC"
+FORM_BORDER_COLOR = "#B58B18"
 FORM_BORDER_RADIUS = 15
-FORM_PADDING = 15 # Slightly reduced padding inside form
-FIELD_SPACING = 12 # Reduced spacing between fields
+FORM_PADDING = 15
+FIELD_SPACING = 12
 FIELD_BGCOLOR = ft.colors.WHITE
 FIELD_BORDER_RADIUS = 8
-TITLE_COLOR = "#9A7B4F" # Darker gold/brown for title
-BUTTON_COLOR = "#8BC34A" # Brighter Green color for button like image
+TITLE_COLOR = "#9A7B4F"
+BUTTON_COLOR = "#8BC34A"
 BUTTON_TEXT_COLOR = ft.colors.WHITE
 
+# Global dictionary to store course lookups - modified for string keys
 course_lookup = {}
-# --- Placeholder Functions ---
-# It's better practice to access controls via references instead of deep indexing
-# We'll create references in the create_report_course_view function
-
 
 def course_title(course):
     title = "دورة "
@@ -30,9 +28,10 @@ def course_title(course):
     else:
         title += 'اناث'
     return title
+
 def submit_report_request(e: ft.ControlEvent):
     page = e.page
-    view = page.views[-1] # Get the current view
+    view = page.views[-1]
 
     # Access controls using the references stored in the view's data attribute
     controls_dict = view.data
@@ -45,98 +44,120 @@ def submit_report_request(e: ft.ControlEvent):
     print(f"  Course ID: {course_id}")
     print(f"  College: {college}")
     print(f"  Student Name: {student_name}")
-    print(f"  Student Name: {report_type}")
+    print(f"  Report Type: {report_type}")
 
-
-    # Add logic here to generate/fetch the report based on selections
-    page.course_id = course_id
+    # Store selections in page properties - Fix: Convert course_id to string for lookup
+    # This ensures consistent type between dropdown value and lookup key
+    page.course_id = course_id  # Store the actual ID (likely an integer)
+    
+    # Fix: Convert course_id to string when looking up
+    course_id_str = str(course_id) if course_id is not None else None
+    
+    if course_id_str in course_lookup:
+        page.course_name = course_lookup[course_id_str]
+    else:
+        # Fallback message if course not found in lookup
+        print(f"Warning: Course ID {course_id} not found in lookup")
+        page.course_name = f"Course {course_id}"
+    
+    # Handle faculty ID
     if college:
-        page.faculty_id = int(college)
+        # Ensure faculty_id is an integer
+        try:
+            page.faculty_id = int(college)
+        except (ValueError, TypeError):
+            page.faculty_id = None
     else:
         page.faculty_id = None
+    
     page.student_name = student_name
-    page.course_name = course_lookup[course_id]
 
     # Navigate based on report type
     if report_type == "type1":
-        page.go("/report")  # Existing page
+        page.go("/report")
     else:
-        page.go("/report_alt")  # New page you'll define later
+        page.go("/report_alt")
 
 def go_back_to_dashboard(e: ft.ControlEvent):
     """Navigates back to the dashboard."""
     e.page.go("/dashboard")
 
-# --- View Creation Function ---
 def create_report_course_view(page: ft.Page):
     """Creates the Flet View for the Course Report Generation screen."""
+    # Clear the global lookup to prevent stale data
+    global course_lookup
+    course_lookup.clear()
+    
+    banner_control = create_banner(page.width)
 
-    banner_control = create_banner(page.width) # Use the shared banner
-
-    # --- Back Button ---
     back_button = ft.IconButton(
-        icon=ft.icons.ARROW_BACK, # Changed to ARROW_BACK for left-pointing arrow
+        icon=ft.icons.ARROW_BACK,
         tooltip="العودة إلى لوحة التحكم",
         icon_color=FORM_BORDER_COLOR,
         icon_size=30,
         on_click=go_back_to_dashboard
     )
 
-    # --- Title ---
     title = ft.Text(
         "استخراج تقرير دورة",
-        size=36, # Slightly larger title
+        size=36,
         weight=ft.FontWeight.BOLD,
         color=TITLE_COLOR,
         text_align=ft.TextAlign.CENTER
     )
-    # first, fetch all courses (e.g. sorted however you like)
+    
+    # Fetch all courses
     courses = get_all_courses()
-
+    
+    # FIX: Convert course IDs to strings in the lookup dictionary
     for course in courses:
-        course_lookup[course.id] = course_title(course)
-    # then build a Dropdown instead of a TextField:
+        course_lookup[str(course.id)] = course_title(course)
+
+    # Build dropdown options with string keys for consistency
+    course_options = [
+        ft.dropdown.Option(
+            text=course_title(c),
+            key=str(c.id),  # FIX: Convert ID to string for consistent key type
+            text_style=ft.TextStyle(color="#000000")
+        )
+        for c in courses
+    ]
+    
     course_dropdown = ft.Dropdown(
-        hint_text="تاريخ الدورة",           # your placeholder
+        hint_text="تاريخ الدورة",
         border_color=FORM_BORDER_COLOR,
         color="#000000",
         hint_style=ft.TextStyle(color="#000000"),
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
         text_align=ft.TextAlign.RIGHT,
-        options=[
-        ft.dropdown.Option(
-            text=course_title(c),
-            key=c.id,
-            text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
-        )
-        for c in courses
-    ],
-        # optionally pre‑select the first one (or leave as None)
-        value=courses[0].id if courses else None,
+        options=course_options,
+        # Set default value using string key
+        value=str(courses[0].id) if courses else None,
     )
+    
     faculties = get_all_faculties()
+    faculty_options = [
+        ft.dropdown.Option(
+            text=f.name,
+            key=str(f.id),  # FIX: Convert ID to string for consistency
+            text_style=ft.TextStyle(color="#000000")
+        )
+        for f in faculties
+    ]
+    
     college_dropdown = ft.Dropdown(
-        hint_text="الكلية (اختياري)", # Use hint_text
+        hint_text="الكلية (اختياري)",
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
         color="#000000",
         hint_style=ft.TextStyle(color="#000000"),
-        # text_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for selected item (might not work perfectly cross-platform)
-        # hint_style=ft.TextStyle(text_align=ft.TextAlign.RIGHT), # Alignment for hint (might not work perfectly cross-platform)
-        options=[
-        ft.dropdown.Option(
-            text=f.name,
-            key=f.id,
-            text_style=ft.TextStyle(color="#000000")   # ← MAKE OPTION TEXT BLACK
-        )
-        for f in faculties
-    ],
+        options=faculty_options,
     )
 
     student_name_field = ft.TextField(
-        hint_text="اسم طالب (اختياري)", # Use hint_text
+        hint_text="اسم طالب (اختياري)",
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
         color="#000000",
@@ -145,19 +166,18 @@ def create_report_course_view(page: ft.Page):
         text_align=ft.TextAlign.RIGHT,
     )
 
-    # --- Report Type Dropdown ---
     report_type_dropdown = ft.Dropdown(
-        hint_text="نوع التقرير",  # Report Type
+        hint_text="نوع التقرير",
         border_color=FORM_BORDER_COLOR,
         border_radius=FIELD_BORDER_RADIUS,
         bgcolor=FIELD_BGCOLOR,
         color="#000000",
         hint_style=ft.TextStyle(color="#000000"),
         options=[
-            ft.dropdown.Option(key="type1", text="نوع التقرير 1"),  # ← placeholder
-            ft.dropdown.Option(key="type2", text="نوع التقرير 2")  # ← placeholder
+            ft.dropdown.Option(key="type1", text="تقرير الاسم"),
+            ft.dropdown.Option(key="type2", text="تقرير الأيام")
         ],
-        value="type1"  # default value (optional)
+        value="type1"
     )
 
     # Store controls for easier access in submit function
@@ -168,13 +188,12 @@ def create_report_course_view(page: ft.Page):
         "report_type": report_type_dropdown,
     }
 
-    # --- Form Container ---
     form_container = ft.Container(
         padding=FORM_PADDING,
-        border=ft.border.all(2.5, FORM_BORDER_COLOR), # Slightly thicker border
+        border=ft.border.all(2.5, FORM_BORDER_COLOR),
         border_radius=FORM_BORDER_RADIUS,
-        bgcolor=FIELD_BGCOLOR, # Opaque white background
-        width=450, # Adjust width as needed
+        bgcolor=FIELD_BGCOLOR,
+        width=450,
         content=ft.Column(
             [
                 report_type_dropdown,
@@ -183,11 +202,9 @@ def create_report_course_view(page: ft.Page):
                 student_name_field
             ],
             spacing=FIELD_SPACING,
-            # horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Let controls fill width
         )
     )
 
-    # --- Submit Button ---
     submit_button = ft.ElevatedButton(
         text="تأكيـد",
         bgcolor=BUTTON_COLOR,
@@ -195,53 +212,45 @@ def create_report_course_view(page: ft.Page):
         width=200,
         height=50,
         style=ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=FIELD_BORDER_RADIUS), # Use same radius as fields
+            shape=ft.RoundedRectangleBorder(radius=FIELD_BORDER_RADIUS),
         ),
-        on_click=submit_report_request # Assign the placeholder function
+        on_click=submit_report_request
     )
 
-    # --- Main Layout Column (Content below Banner) ---
     main_content_column = ft.Column(
         [
-            # Row for Back Button alignment (aligned left/start)
             ft.Row([back_button], alignment=ft.MainAxisAlignment.START),
-            # title, # Title centered below back button row
-            ft.Container(height=10), # Spacer
-            title, # Title centered below back button row
-            ft.Container(height=20), # Spacer
+            ft.Container(height=10),
+            title,
+            ft.Container(height=20),
             form_container,
-            ft.Container(height=25), # Spacer
+            ft.Container(height=25),
             submit_button,
-            # ft.Container(height=20), # Spacer at bottom optional
         ],
-        # Removed expand=True here, let the outer container handle expansion
-        scroll=ft.ScrollMode.ADAPTIVE, # Allow scrolling if content overflows
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Center items horizontally
-        # alignment=ft.MainAxisAlignment.START, # Align content towards the top
-        spacing=0 # Control spacing with Containers
+        scroll=ft.ScrollMode.ADAPTIVE,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=0
     )
 
-
-    # --- View ---
     view = ft.View(
         route="/report_course",
         bgcolor=PAGE_BGCOLOR,
-        padding=0, # No padding on the view itself
+        padding=0,
         controls=[
-             # Add the banner at the top level
-             banner_control,
-             # Wrap main content in a container for padding and centering
-             ft.Container(
-                 content=main_content_column,
-                 expand=True, # Allow this container to take available space
-                 alignment=ft.alignment.center, # Center the column vertically if space allows
-                 padding=ft.padding.symmetric(horizontal=30, vertical=10) # Add padding around main content
-             )
+            banner_control,
+            ft.Container(
+                content=main_content_column,
+                expand=True,
+                alignment=ft.alignment.center,
+                padding=ft.padding.symmetric(horizontal=30, vertical=10)
+            )
         ]
     )
+    
     # Store the controls dictionary in the view's data attribute
     view.data = controls_dict
     return view
+
 
 # Example Usage (if running this file directly)
 if __name__ == "__main__":

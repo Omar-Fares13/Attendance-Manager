@@ -134,7 +134,8 @@ def toggle_attendance(e, page: ft.Page):
             new_att = Attendance(
                 student_id=student_id,
                 date=date,
-                arrival_time=time(0, 0)  # Default time
+                arrival_time=time(8, 0),  # Default time
+                leave_time=time (12,0)
             )
             session.add(new_att)
             new_status = True

@@ -224,7 +224,12 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 
     if "is_male" in search_attributes:
         q = search_attributes["is_male"]
-        stmt = stmt.where(Student.is_male == q)
+        # Make the boolean comparison more explicit
+        if q is True:
+            stmt = stmt.where(Student.is_male == True)
+        elif q is False:
+            stmt = stmt.where(Student.is_male == False)
+        # No else needed - if q is None, don't add a filter
     
     if "course_id" in search_attributes:
         q = search_attributes["course_id"]
