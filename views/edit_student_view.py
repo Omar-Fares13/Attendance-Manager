@@ -10,16 +10,32 @@ from datetime import date, timedelta, time
 from sqlmodel import select
 from db import get_session
 
+# Define Colors & Constants
+BG_COLOR = "#E3DCCC"
+PRIMARY_COLOR = "#B58B18"
+TEXT_COLOR_DARK = "#333333"
+TEXT_COLOR_HEADER = ft.colors.WHITE
+TABLE_HEADER_BG = "#5A5A5A"
+TABLE_CELL_BG = ft.colors.with_opacity(0.95, ft.colors.WHITE)
+TABLE_BORDER_COLOR = ft.colors.with_opacity(0.5, PRIMARY_COLOR)
+BUTTON_CONFIRM_COLOR = ft.colors.GREEN_700
+BUTTON_CANCEL_COLOR = ft.colors.GREY_700
+BUTTON_TEXT_COLOR = ft.colors.WHITE
+TABLE_ALT_ROW_BG = "#EFEFEF"
+ATTENDANCE_PRESENT_BG = "#008000"  # Green for present
+ATTENDANCE_ABSENT_BG = "#FF0000"   # Red for absent
+FONT_FAMILY_REGULAR = "Tajawal"
+FONT_FAMILY_BOLD = "Tajawal-Bold"
+
 edit_attributes = {}
 faculty_lookup = {}
 
-
 def update_field(name: str, value: str):
+    """Update the edit_attributes dictionary with form field values"""
     if not value:
         edit_attributes.pop(name, None)
     else:
         edit_attributes[name] = value
-
 
 def create_form_field(label: str, name: str, value: str):
     """Creates a styled TextField for the edit form."""
@@ -28,10 +44,10 @@ def create_form_field(label: str, name: str, value: str):
         value=value,
         label=label,
         text_align=ft.TextAlign.RIGHT,
-        label_style=ft.TextStyle(color="#B58B18", size=14),
-        border_color="#B58B18",
-        color="#000000",
-        focused_border_color="#B58B18",
+        label_style=ft.TextStyle(color=PRIMARY_COLOR, size=14),
+        border_color=PRIMARY_COLOR,
+        color=TEXT_COLOR_DARK,
+        focused_border_color=PRIMARY_COLOR,
         bgcolor=ft.Colors.WHITE,
         border_radius=8,
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
@@ -39,6 +55,98 @@ def create_form_field(label: str, name: str, value: str):
         on_change=lambda e: update_field(e.control.data, value=e.control.value)
     )
 
+def get_arabic_day_name(weekday: int) -> str:
+    """Returns the Arabic name for the given weekday."""
+    arabic_days = [
+        "الاثنين", "الثلاثاء", "الأربعاء",
+        "الخميس", "الجمعة", "السبت", "الأحد"
+    ]
+    return arabic_days[weekday]
+
+def create_attendance_cell(arrival_time, leave_time, day_date, student_id, page):
+    """Create a cell with stacked arrival and departure times"""
+    # Determine attendance status
+    has_attended = bool(arrival_time and leave_time)
+    bg_color = ATTENDANCE_PRESENT_BG if has_attended else ATTENDANCE_ABSENT_BG
+    
+    # Format times for display
+    arrival = f"{arrival_time.hour}:{arrival_time.minute:02d}" if arrival_time else ""
+    departure = f"{leave_time.hour}:{leave_time.minute:02d}" if leave_time else ""
+    
+    return ft.Container(
+        content=ft.Column(
+            [
+                ft.Text(
+                    value=arrival or "",
+                    size=14,
+                    text_align=ft.TextAlign.CENTER,
+                    weight=ft.FontWeight.BOLD if arrival else ft.FontWeight.NORMAL,
+                    color=TEXT_COLOR_HEADER
+                ),
+                ft.Text(
+                    value=departure or "",
+                    size=14,
+                    text_align=ft.TextAlign.CENTER,
+                    weight=ft.FontWeight.BOLD if departure else ft.FontWeight.NORMAL,
+                    color=TEXT_COLOR_HEADER
+                )
+            ],
+            spacing=4,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        ),
+        bgcolor=bg_color,
+        border_radius=ft.border_radius.all(4),
+        padding=ft.padding.symmetric(vertical=8),
+        alignment=ft.alignment.center,
+        height=60,
+        data={"date": day_date, "student_id": student_id},
+        on_click=lambda e: toggle_attendance(e, page)
+    )
+
+def toggle_attendance(e, page: ft.Page):
+    """Toggle attendance status and update UI"""
+    container = e.control
+    student_id = container.data["student_id"]
+    date = container.data["date"]
+    
+    with next(get_session()) as session:
+        # Check existing attendance
+        existing = session.exec(
+            select(Attendance).where(
+                Attendance.student_id == student_id,
+                Attendance.date == date
+            )
+        ).first()
+
+        if existing:
+            # Delete existing record
+            session.delete(existing)
+            new_status = False
+            arrival = ""
+            departure = ""
+        else:
+            # Create new record with default times
+            default_arrival = time(8, 0)
+            default_departure = time(12, 0)
+            new_att = Attendance(
+                student_id=student_id,
+                date=date,
+                arrival_time=default_arrival,
+                leave_time=default_departure
+            )
+            session.add(new_att)
+            new_status = True
+            arrival = f"{default_arrival.hour}:{default_arrival.minute:02d}"
+            departure = f"{default_departure.hour}:{default_departure.minute:02d}"
+        session.commit()
+
+    # Update UI - need to update the entire column content
+    column_content = container.content
+    column_content.controls[0].value = arrival  # Update arrival time text
+    column_content.controls[1].value = departure  # Update departure time text
+    container.bgcolor = ATTENDANCE_PRESENT_BG if new_status else ATTENDANCE_ABSENT_BG  # Update background color
+    page.update()
 
 def create_attendance_table(page: ft.Page, student_id: int, course_start_date: date):
     """Creates a horizontal scrollable table showing attendance for each day."""
@@ -53,108 +161,67 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
     for week in range(1, 3):
         for _ in range(7):
             weekday = current_date.weekday()
-            if weekday != 4:
+            if weekday != 4:  # Skip Fridays
                 day_name = get_arabic_day_name(weekday)
-                day_display = f"{day_name} {week}"
+                day_display = f"{day_name}\n{current_date.strftime('%d/%m')}"
                 days.append((current_date, day_display))
             current_date += timedelta(days=1)
 
-    # Rest of the function remains the same...
+    # Create columns
     columns = []
     for day_date, day_display in days:
         columns.append(
             ft.DataColumn(
-                ft.Text(day_display, color=ft.colors.BLACK, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Text(
+                        value=day_display,
+                        color=TEXT_COLOR_HEADER,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                        size=14
+                    ),
+                    bgcolor=TABLE_HEADER_BG,
+                    padding=ft.padding.all(8),
+                    alignment=ft.alignment.center,
+                    border_radius=ft.border_radius.all(4)
+                ),
                 numeric=False
             )
         )
 
-    def to_h_m(t):
-        return f"{t.hour}:{t.minute}" if t else ""
+    # Create attendance cells
     cells = []
-    arrivals, leaves = [], []
     for day_date, day_display in days:
         attended = day_date in present_dates
-        icon_button = ft.IconButton(
-            icon=ft.icons.CHECK if attended else ft.icons.CLOSE,
-            icon_color=ft.colors.GREEN if attended else ft.colors.RED,
-            data={"date": day_date, "student_id": student_id},
-            on_click=lambda e: toggle_attendance(e, page),
-            key=f"att_{day_date}",
-            icon_size=20
+        arrival_time = present_dates[day_date][0] if attended else None
+        leave_time = present_dates[day_date][1] if attended else None
+        
+        cell = ft.DataCell(
+            create_attendance_cell(arrival_time, leave_time, day_date, student_id, page)
         )
-        cells.append(ft.DataCell(icon_button))
-        arrivals.append(ft.DataCell(ft.Text(to_h_m(present_dates[day_date][0] if attended else ""), color="#000000")))
-        leaves.append(ft.DataCell(ft.Text(to_h_m(present_dates[day_date][1] if attended else ""), color="#000000")))
-    print(cells)
-    print(arrivals)
-    print(leaves)
+        cells.append(cell)
+
+    # Create the table
     table = ft.DataTable(
         columns=columns,
-        rows=[ft.DataRow(cells=cells), ft.DataRow(cells=arrivals), ft.DataRow(cells=leaves)],
-        heading_row_color=ft.colors.GREY_200,
-        heading_row_height=40,
-        horizontal_margin=15,
-        column_spacing=20,
+        rows=[ft.DataRow(cells=cells)],
+        border=ft.border.all(1, TABLE_BORDER_COLOR),
+        border_radius=ft.border_radius.all(8),
+        vertical_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
+        horizontal_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
+        heading_row_height=80,
+        data_row_min_height=60,
+        data_row_max_height=80,
         divider_thickness=1,
-        border=ft.border.all(1, "#B58B18"),
+        column_spacing=10,
     )
 
-    return ft.Row(
-        controls=[
-            ft.Container(
-                content=table,
-                padding=10,
-                border_radius=8,
-            )
-        ],
-        scroll=ft.ScrollMode.AUTO,
+    return ft.Container(
+        content=table,
+        padding=ft.padding.all(10),
+        border_radius=8,
         expand=True
     )
-def toggle_attendance(e, page: ft.Page):
-    """Toggle attendance status for a specific date"""
-    student_id = e.control.data["student_id"]
-    date = e.control.data["date"]
-
-    with next(get_session()) as session:
-        # Check existing attendance
-        existing = session.exec(
-            select(Attendance).where(
-                Attendance.student_id == student_id,
-                Attendance.date == date
-            )
-        ).first()
-
-        if existing:
-            # Delete existing record
-            session.delete(existing)
-            new_status = False
-        else:
-            # Create new record
-            new_att = Attendance(
-                student_id=student_id,
-                date=date,
-                arrival_time=time(8, 0),  # Default time
-                leave_time=time (12,0)
-            )
-            session.add(new_att)
-            new_status = True
-        session.commit()
-
-    # Update UI
-    e.control.icon = ft.icons.CHECK if new_status else ft.icons.CLOSE
-    e.control.icon_color = ft.colors.GREEN if new_status else ft.colors.RED
-    page.update()
-
-
-def get_arabic_day_name(weekday: int) -> str:
-    """Returns the Arabic name for the given weekday."""
-    arabic_days = [
-        "السبت", "الاحد", "الاثنين",
-        "الثلاثاء", "الاربعاء", "الخميس", "الجمعة"
-    ]
-    return arabic_days[(weekday + 2) % 7]
-
 
 def create_edit_student_view(page: ft.Page):
     """Creates the Flet View for the Edit Student Data screen."""
@@ -166,13 +233,18 @@ def create_edit_student_view(page: ft.Page):
         page.go("/search_student")
 
     back_button = ft.IconButton(
-        icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color="#B58B18",
-        tooltip="العودة", on_click=go_back, icon_size=30
+        icon=ft.icons.ARROW_FORWARD_OUTLINED, 
+        icon_color=PRIMARY_COLOR,
+        tooltip="العودة", 
+        on_click=go_back, 
+        icon_size=30
     )
 
     page_title = ft.Text(
         "تعديل بيانات الطالب",
-        size=32, weight=ft.FontWeight.BOLD, color="#B58B18"
+        size=32, 
+        weight=ft.FontWeight.BOLD, 
+        color=PRIMARY_COLOR
     )
 
     student_id = page.student_id
@@ -185,16 +257,19 @@ def create_edit_student_view(page: ft.Page):
         name="name",
         value=student.name
     )
+    
     national_id_field = create_form_field(
         label="الرقم القومي",
         name="national_id",
         value=student.national_id
     )
+    
     serial_no_field = create_form_field(
         label="رقم المسلسل",
         name="seq_number",
         value=student.seq_number
     )
+    
     faculty_field = ft.Dropdown(
         label="الكلية",
         data="faculty_id",
@@ -204,9 +279,9 @@ def create_edit_student_view(page: ft.Page):
         ],
         value=str(student.faculty_id),
         on_change=lambda e: update_field(name=e.control.data, value=e.control.value),
-        border_color="#B58B18",
-        color="#000000",
-        focused_border_color="#B58B18",
+        border_color=PRIMARY_COLOR,
+        color=TEXT_COLOR_DARK,
+        focused_border_color=PRIMARY_COLOR,
         border_radius=8,
         content_padding=ft.padding.symmetric(horizontal=15, vertical=10),
     )
@@ -234,18 +309,19 @@ def create_edit_student_view(page: ft.Page):
     save_button = ft.ElevatedButton(
         text="حفظ",
         icon=ft.icons.SAVE_OUTLINED,
-        bgcolor="#B58B18",
-        color=ft.Colors.WHITE,
+        bgcolor=BUTTON_CONFIRM_COLOR,
+        color=BUTTON_TEXT_COLOR,
         height=45,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         on_click=save_data
     )
 
     # --- Attendance Table ---
-    attendance_table = ft.Column([
-        ft.Text("سجل الحضور", size=20, weight=ft.FontWeight.BOLD, color="#B58B18"),
+    attendance_section = ft.Column([
+        ft.Text("سجل الحضور", size=20, weight=ft.FontWeight.BOLD, color=PRIMARY_COLOR),
         create_attendance_table(page, student_id, student.course.start_date)
     ])
+    
     # --- Form Layout using ResponsiveRow ---
     form_layout = ft.ResponsiveRow(
         alignment=ft.MainAxisAlignment.START,
@@ -279,7 +355,7 @@ def create_edit_student_view(page: ft.Page):
             ft.Column(
                 col=12,
                 controls=[
-                    attendance_table
+                    attendance_section
                 ]
             )
         ]
@@ -318,7 +394,7 @@ def create_edit_student_view(page: ft.Page):
     return ft.View(
         route="/edit_student",
         padding=0,
-        bgcolor="#E3DCCC",
+        bgcolor=BG_COLOR,
         controls=[
             ft.Column(
                 [
