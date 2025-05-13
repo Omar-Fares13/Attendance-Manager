@@ -304,3 +304,22 @@ def save_note(note : str, student_id : int, is_warning : bool = False):
         session.commit()
         session.refresh(note_entry)
     return note_entry
+
+def get_all_students_with_relationships():
+    """
+    Get all students with their faculty and course relationships 
+    preloaded to avoid session errors
+    """
+    from sqlalchemy.orm import joinedload
+    
+    with next(get_session()) as session:
+        stmt = (
+            select(Student)
+            .options(
+                joinedload(Student.faculty),
+                joinedload(Student.course)
+            )
+        )
+        students = session.exec(stmt).all()
+        # Convert to list to fully load all objects before session closes
+        return list(students)

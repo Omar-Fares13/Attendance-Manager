@@ -39,6 +39,7 @@ ICON_REGISTER = "icon_register.png"
 ICON_MANAGE = "icon_manage.png"
 ICON_REPORT = "icon_report.png"
 ICON_COLLEGE = "icon_college.png"
+ICON_QR_CODE = "qr_code_pdf.png"
 
 # Management Icons
 ICON_ATTENDANCE = "icon_attendance.png"

@@ -47,3 +47,10 @@ def get_all_courses():
         )
         courses = session.exec(stmt).all()
         return courses
+
+def get_course_by_id(course_id: int):
+    """Get a course by its ID"""
+    with next(get_session()) as session:
+        stmt = select(Course).where(Course.id == course_id)
+        course = session.exec(stmt).one_or_none()
+        return course

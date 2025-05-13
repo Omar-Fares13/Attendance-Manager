@@ -82,7 +82,6 @@ from views.edit_student_view import create_edit_student_view
 from views.register_course_view import create_register_course_view
 from views.register_course_options_view import create_register_course_options_view
 from views.camera_qr_view import create_camera_qr_view
-from views.qr_display_view import create_qr_display_view
 from views.report_course_view import create_report_course_view
 from views.main_screen_view import create_main_screen_view
 from views.manage_colleges_view import create_manage_colleges_view
@@ -185,7 +184,6 @@ def main(page: ft.Page):
             "/report": create_report_view,
             "/report_alt": create_report_alt_view,
             "/camera_qr": create_camera_qr_view,
-            "/qr_display": create_qr_display_view,
             "/course_file_upload": create_upload_course_file_view,
             "/report_course": create_report_course_view,
             "/main_screen": create_main_screen_view,

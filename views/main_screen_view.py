@@ -15,7 +15,7 @@ def create_main_screen_view(page: ft.Page):
     # Timer to navigate after 3 seconds (3000 ms)
     async def _go_dashboard():
         print("wait")
-        await asyncio.sleep(1.4)
+        await asyncio.sleep(1.0)
         page.routes = []
         page.go("/dashboard")
     page.run_task(_go_dashboard)

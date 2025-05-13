@@ -1,9 +1,10 @@
 # views/dashboard_view.py
 
 import flet as ft
+from logic.pdf_generator import generate_qr_pdfs
 from components.banner import create_banner
 from utils.assets import (ft_asset, ICON_REGISTER, ICON_MANAGE,
-                          ICON_REPORT, ICON_COLLEGE)
+                          ICON_REPORT, ICON_COLLEGE,ICON_QR_CODE)
 
 target = None
 def set_target(value):
@@ -31,6 +32,9 @@ def create_dashboard_card(page: ft.Page, icon_src: str, text: str, action_data: 
             page.go("/report_course")
         elif action == "colleges":
             page.go("/colleges")
+        elif action == "generate_qr_pdfs":
+            # This is our new action
+            generate_qr_pdfs(page)
         else:
             page.routes.pop()
             page.show_snack_bar(ft.SnackBar(ft.Text(f"تم النقر على: {text}"), open=True))
@@ -59,15 +63,10 @@ def create_dashboard_view(page: ft.Page):
         page.go(target)
     dropdown = ft.Dropdown(
     options=[
-    ft.dropdown.Option(key="/main_screen",       text="الصفحة الرئيسية"),
-    ft.dropdown.Option(key="/dashboard",         text="لوحة التحكم"),
-    ft.dropdown.Option(key="/colleges",          text="إدارة الكليات"),
-    ft.dropdown.Option(key="/manage_course",     text="إدارة الدورات"),
     ft.dropdown.Option(key="/register_course",   text="تسجيل دورة جديدة"),
     ft.dropdown.Option(key="/attendance",        text="قائمة الحضور"),
     ft.dropdown.Option(key="/manage_students",   text="إدارة الطلاب"),
     ft.dropdown.Option(key="/search_student",    text="البحث عن طالب"),
-    ft.dropdown.Option(key="/search_qr_student", text="البحث بالرمز"),
     ft.dropdown.Option(key="/report_course",     text="استخراج التقارير"),
     ],
         value="all",
@@ -98,6 +97,7 @@ def create_dashboard_view(page: ft.Page):
     )
     # Dashboard cards
     card_data = [
+        {"icon": ICON_QR_CODE,  "text": "إنشاء ملفات QR",    "action": "generate_qr_pdfs"},
         {"icon": ICON_REGISTER, "text": "تسجيل دورة جديدة", "action": "register"},
         {"icon": ICON_MANAGE,   "text": "إدارة دورة",        "action": "manage"},
         {"icon": ICON_REPORT,   "text": "استخراج تقارير",    "action": "reports"},
