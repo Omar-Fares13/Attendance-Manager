@@ -30,8 +30,13 @@ def get_student_by_qr_code(qr_code: str) -> Optional[Student]:
 def create_student_from_dict(student_data: dict[str, any]) -> Student:
     try:
         with next(get_session()) as session:
+            # Set raw_name if not provided
             if not "raw_name" in student_data:
                 student_data['raw_name'] = student_data['name']
+            
+            # Convert is_male to boolean before using in queries
+            student_data["is_male"] = student_data["is_male"] == "1"
+            
             # Find the current max seq_number for this faculty
             stmt = (
                 select(Course.id)
@@ -40,8 +45,13 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
                 .limit(1)
             )
             course_id = session.exec(stmt).one_or_none()
+            if not course_id:
+                print(f"ERROR: No course found for is_male={student_data['is_male']}")
+                return None
+                
             student_data["course_id"] = course_id
-            student_data["is_male"] = student_data["is_male"] == "1"
+            
+            # Handle faculty lookup if needed
             if not 'faculty_id' in student_data:
                 fac_name = student_data['faculty']
                 student_data.pop('faculty', None)
@@ -50,22 +60,40 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
                     cands = [create_faculty(fac_name)]
                 fac = cands[0]
                 student_data['faculty_id'] = fac.id
-            print(student_data)
-
+            
+            # *** FIX: Explicitly convert faculty_id to integer ***
+            faculty_id = int(student_data["faculty_id"])
+            
+            # Find max sequence with correct types
             stmt = (
                 select(Student.seq_number)
-                .where(Student.faculty_id == student_data["faculty_id"])
+                .where(Student.faculty_id == faculty_id)  # Using integer
                 .where(Student.course_id == course_id)
                 .order_by(Student.seq_number.desc())
                 .limit(1)
             )
             seq = session.exec(stmt).one_or_none()
+            
+            # Debug output
+            print(f"Looking for max sequence with faculty_id={faculty_id} (int), course_id={course_id}")
+            print(f"Current max sequence number: {seq}")
 
             # Prepare the dict for instantiation
             data = student_data.copy()
+            data["faculty_id"] = faculty_id  # Store the integer version
             data["qr_code"] = str(uuid.uuid4())
+            
+            # Handle sequence number calculation
             if not 'seq_number' in data:
-                data["seq_number"] = (int(seq) + 1) if seq is not None else 1
+                try:
+                    if seq is not None:
+                        data["seq_number"] = int(seq) + 1
+                    else:
+                        data["seq_number"] = 1
+                    print(f"Assigned sequence number: {data['seq_number']}")
+                except Exception as e:
+                    print(f"Error processing sequence number: {e}")
+                    data["seq_number"] = 1
 
             # Create and persist the Student
             student = Student(**data)
@@ -74,8 +102,12 @@ def create_student_from_dict(student_data: dict[str, any]) -> Student:
             session.refresh(student)
             return student
     except Exception as e:
-        print(e)
-
+        print(f"Error creating student: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
+    
 def create_student(stu : StudentCreateDTO) -> Student:
     with next(get_session()) as session:
         stmt = (

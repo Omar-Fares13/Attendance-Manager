@@ -1,11 +1,77 @@
-# main.py
-import flet as ft
+#!/usr/bin/env python3
+"""
+Main entry point for the Military Education Application.
+Handles routing, asset loading, and application initialization.
+"""
 import os
+import sys
+from pathlib import Path
+
+import flet as ft
+
+# Add the directory containing this file to the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import create_db_and_tables
 
+# --- Handle asset path resolution (compatible with PyInstaller) ---
+def get_asset_dir():
+    """Get the assets directory path, handling both development and bundled modes."""
+    # Check if running as PyInstaller bundle
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # Running as bundled executable
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Running in development mode
+        base_path = Path(__file__).parent
+    
+    assets_dir = base_path / "assets"
+    return str(assets_dir)
+
+# Define asset utility functions
+ASSETS_DIR = get_asset_dir()
+
+def asset_path(relative_path):
+    """Get absolute path to an asset file."""
+    return os.path.join(ASSETS_DIR, relative_path)
+
+def ft_asset(relative_path):
+    """Get asset path in format needed by Flet."""
+    return relative_path
+
+def check_assets():
+    """Verify that required assets exist."""
+    # This is a placeholder - implement your asset checking logic
+    # based on your application's requirements
+    required_assets = ["Cairo-Regular.ttf"]
+    missing = []
+    
+    for asset in required_assets:
+        if not os.path.exists(asset_path(asset)):
+            missing.append(asset)
+    
+    return len(missing) == 0, missing
+
+# Override imported functions with our definitions if necessary
+try:
+    from utils.assets import check_assets as utils_check_assets
+    # We're using our local definitions instead
+except ImportError:
+    print("Note: utils.assets module not imported, using built-in asset utilities.")
+
+# Print the assets directory to verify
+print(f"Looking for assets in: {ASSETS_DIR}")
+
+# Create assets directory if it doesn't exist
+if not os.path.isdir(ASSETS_DIR):
+    print(f"WARNING: Assets directory '{ASSETS_DIR}' not found.")
+    try:
+        os.makedirs(ASSETS_DIR, exist_ok=True)
+        print(f"Created missing assets directory at {ASSETS_DIR}")
+    except Exception as e:
+        print(f"Failed to create assets directory: {e}")
+        sys.exit(1)
+
 # --- Import View Creation Functions ---
-# (Make sure all these files exist in your 'views' folder
-#  and views/__init__.py exists)
 from views.login_view import create_login_view
 from views.dashboard_view import create_dashboard_view
 from views.manage_course_view import create_manage_course_view
@@ -28,230 +94,169 @@ from views.delete_all_confirmation_view import create_delete_confirmation_view
 from views.setup_view import create_setup_view
 from views.report_view import create_report_view
 from views.report_view_days import create_report_alt_view
+from views.add_note_view import create_add_note_view
 from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
     create_departure_mark_view
 )
 
-# --- Import the new Add Note View ---
-from views.add_note_view import create_add_note_view # <<< ADD THIS IMPORT
-
-
-# --- Import Asset Utilities ---
-# (Make sure 'utils/assets.py' exists)
-try:
-    from utils.assets import ASSETS_DIR, asset_path, check_assets, ft_asset
-except ImportError:
-    print("ERROR: Could not import from utils.assets. Make sure utils/assets.py exists.")
-    # Define dummy functions/variables to prevent further crashes during import phase
-    ASSETS_DIR = "assets"
-    def asset_path(p): return os.path.join(ASSETS_DIR, p)
-    def check_assets(): print("Warning: Asset check skipped due to import error."); return True, []
-    def ft_asset(p): return p # Flet needs relative path from assets_dir
-    # Exit if assets are critical - depends on your app structure
-    # import sys
-    # sys.exit(1)
-
-
-# --- Import Reusable Components ---
-# (Make sure 'components/banner.py' exists)
+# Import reusable components
 try:
     from components.banner import create_banner
 except ImportError:
-    print("ERROR: Could not import from components.banner. Make sure components/banner.py exists.")
-    # Define a dummy banner if needed
-    def create_banner(width): return ft.Container(content=ft.Text("Banner Placeholder"), bgcolor=ft.colors.BLUE_GREY, height=50, padding=10)
-    # import sys
-    # sys.exit(1)
+    print("WARNING: Could not import banner component. Using placeholder.")
+    def create_banner(width):
+        return ft.Container(
+            content=ft.Text("Banner Placeholder"), 
+            bgcolor=ft.colors.BLUE_GREY, 
+            height=50, 
+            padding=10
+        )
 
 
-# === Main Application Function ===
 def main(page: ft.Page):
+    """Main application function that sets up the page and handles routing."""
     # ─── Global Page Setup ────────────────────────────────────
-    page.title = "التربية العسكرية" # App title
-    # Set initial window size instead of forcing full screen immediately
+    page.title = "التربية العسكرية"  # App title
     page.window_width = 1200
-    page.window_height = 850 # Adjusted height slightly
-    page.window_min_width = 800  # Optional: Minimum size
-    page.window_min_height = 600 # Optional: Minimum size
-    # page.window_full_screen = True   # Start in full screen - Can be less user-friendly
-    page.window_resizable = True     # Allow resizing
-    page.padding = 0                 # No padding around the edges of the window
-    page.bgcolor = "#E3DCCC"         # Default background color for all views
-    page.rtl = True                  # <<< SET Right-to-Left layout globally
+    page.window_height = 850
+    page.window_min_width = 800
+    page.window_min_height = 600
+    page.window_resizable = True
+    page.padding = 0
+    page.bgcolor = "#E3DCCC"
+    page.rtl = True  # Right-to-Left layout
     
     # --- Load Font ---
-    # Construct the full path to the font file
-    font_full_path = asset_path("Cairo-Regular.ttf") # Make sure this font is in assets folder
-    if os.path.exists(font_full_path):
-        # Use ft_asset for Flet to find the font within the assets directory
+    font_path = asset_path("Cairo-Regular.ttf")
+    if os.path.exists(font_path):
         page.fonts = {"Cairo": ft_asset("Cairo-Regular.ttf")}
         page.theme = ft.Theme(font_family="Cairo")
         print("Cairo font loaded and RTL theme set.")
     else:
-        print(f"Warning: Font file not found at {font_full_path}. Using default font.")
+        print(f"Warning: Font file not found at {font_path}. Using default font.")
 
-    # ─── Routing Logic ────────────────────────────────────────
-    def route_change(route: ft.RouteChangeEvent): # Use specific event type hinting
-        """Handles navigation between different views/pages."""
-        target_route = route.route # Get the route from the event object
-        print(f"Route changing to: {target_route}") # Log the requested route
-        page.views.clear() # Remove the current view(s) from the stack
-
-        # --- Optional: Extract base route and query parameters if needed ---
-        # Example: route could be "/add_note?student_id=123"
-        route_parts = target_route.split("?")
-        actual_route = route_parts[0]
-        # query_params = {}
-        # if len(route_parts) > 1:
-        #     params = route_parts[1].split('&')
-        #     for param in params:
-        #         key_value = param.split('=')
-        #         if len(key_value) == 2:
-        #             query_params[key_value[0]] = key_value[1]
-        # print(f"Actual route: {actual_route}, Params: {query_params}")
-
-
-        # --- Add Views based on the actual route (ignoring params for now) ---
-        # Login/Default Route (often checked first)
-        if actual_route in ["/", "/login", ""]:
-             try:
-                 page.views.append(create_login_view(page))
-             except NameError:
-                 print("ERROR: create_login_view is not defined. Check import.")
-                 page.views.append(ft.View("/", [ft.Text("Error: Login View Missing")]))
-
-        # Dashboard
-        elif actual_route == "/dashboard":
-            page.views.append(create_dashboard_view(page))
-
-
-        # Colleges
-        elif actual_route == '/colleges':
-            page.views.append(create_manage_colleges_view(page))
-
-        # Course Management
-        elif actual_route == "/manage_course":
-            page.views.append(create_manage_course_view(page))
-        elif actual_route == "/register_course_options":
-             page.views.append(create_register_course_options_view(page))
-        elif actual_route == "/delete_all_data":
-            page.views.append(create_delete_confirmation_view(page))
-        elif actual_route == "/register_course":
-             page.views.append(create_register_course_view(page))
-
-        # Attendance Flow
-        elif actual_route == "/attendance":
-            page.views.append(create_attendance_view(page))
-        elif actual_route == "/mark_attendance":
-            page.views.append(create_attendance_mark_view(page))
-        elif actual_route == "/mark_departure":
-            page.views.append(create_departure_mark_view(page))
-        elif actual_route == "/add_note":                 # <<< ADD THIS ROUTE
-            # TODO: If you passed student_id via query params, retrieve it here:
-            # student_id = query_params.get("student_id")
-            # page.views.append(create_add_note_view(page, student_id=student_id)) # Pass it to the view function
-            page.views.append(create_add_note_view(page)) # <<< CALL NEW VIEW FUNCTION
-
-
-        # Student Management
-        elif actual_route == "/manage_students":
-            page.views.append(create_manage_students_view(page))
-        elif actual_route == "/search_student":
-            page.views.append(create_search_student_view(page))
-        # Example route with parameter (Needs adjustment in view logic too)
-        # elif actual_route.startswith("/edit_student/"): # If using path params like /edit_student/123
-        #      student_id = actual_route.split('/')[-1] # Get ID from route
-        #      page.views.append(create_edit_student_view(page, student_id)) # Pass ID
-        elif actual_route == "/edit_student": # Assuming generic route for now
-             page.views.append(create_edit_student_view(page))
-        elif actual_route == '/report':
-            page.views.append(create_report_view(page))
-        elif actual_route == '/report_alt':
-            page.views.append(create_report_alt_view(page))
-        # QR Code Flow
-        elif actual_route == "/camera_qr":
-            page.views.append(create_camera_qr_view(page))
-        elif actual_route == "/qr_display":
-            page.views.append(create_qr_display_view(page))
+    def parse_route(route_string):
+        """Parse route and extract query parameters."""
+        route_parts = route_string.split("?")
+        route = route_parts[0]
+        params = {}
         
-        # File upload
-        elif actual_route == "/course_file_upload":
-            page.views.append(create_upload_course_file_view(page))
+        if len(route_parts) > 1:
+            param_string = route_parts[1]
+            param_pairs = param_string.split('&')
+            
+            for pair in param_pairs:
+                if '=' in pair:
+                    key, value = pair.split('=', 1)
+                    params[key] = value
+        
+        return route, params
 
-        # Reporting
-        elif actual_route == "/report_course":
-            page.views.append(create_report_course_view(page))
-        elif actual_route == "/main_screen":
-            page.views.append(create_main_screen_view(page))
-        elif actual_route == "/add_student":
-            page.views.append(create_add_student_view(page))
-        elif actual_route == '/search_qr_student':
-            page.views.append(create_qr_search_student_view(page))
-        elif actual_route == '/edit_course_data':
-            page.views.append(create_edit_course_data_view(page))
-        elif actual_route == '/setup':
-            page.views.append(create_setup_view(page))
-        # --- Unknown Route Handling ---
+    def route_change(event: ft.RouteChangeEvent):
+        """Handle navigation between different views/pages."""
+        route_string = event.route
+        print(f"Route changing to: {route_string}")
+        
+        # Clear current view stack
+        page.views.clear()
+        
+        # Parse route and extract any query parameters
+        route, params = parse_route(route_string)
+        
+        # Route mapping - Each route corresponds to a view creation function
+        route_map = {
+            "/": create_login_view,
+            "/login": create_login_view,
+            "": create_login_view,
+            "/dashboard": create_dashboard_view,
+            "/colleges": create_manage_colleges_view,
+            "/manage_course": create_manage_course_view,
+            "/register_course_options": create_register_course_options_view,
+            "/delete_all_data": create_delete_confirmation_view,
+            "/register_course": create_register_course_view,
+            "/attendance": create_attendance_view,
+            "/mark_attendance": create_attendance_mark_view,
+            "/mark_departure": create_departure_mark_view,
+            "/add_note": create_add_note_view,
+            "/manage_students": create_manage_students_view,
+            "/search_student": create_search_student_view,
+            "/edit_student": create_edit_student_view,
+            "/report": create_report_view,
+            "/report_alt": create_report_alt_view,
+            "/camera_qr": create_camera_qr_view,
+            "/qr_display": create_qr_display_view,
+            "/course_file_upload": create_upload_course_file_view,
+            "/report_course": create_report_course_view,
+            "/main_screen": create_main_screen_view,
+            "/add_student": create_add_student_view,
+            "/search_qr_student": create_qr_search_student_view,
+            "/edit_course_data": create_edit_course_data_view,
+            "/setup": create_setup_view,
+        }
+        
+        # Get the view creation function or default to login view
+        view_creator = route_map.get(route)
+        
+        if view_creator:
+            # For views that might need query parameters
+            if route == "/add_note" and "student_id" in params:
+                page.views.append(view_creator(page, student_id=params["student_id"]))
+            elif route == "/edit_student" and "student_id" in params:
+                page.views.append(view_creator(page, student_id=params["student_id"]))
+            else:
+                page.views.append(view_creator(page))
         else:
-             print(f"Unknown route: {target_route}, redirecting to login.")
-             page.views.append(create_login_view(page)) # Go to login for safety
-             
-        # --- Ensure at least one view is present (fallback) ---
+            print(f"Unknown route: {route}, redirecting to login.")
+            page.views.append(create_login_view(page))
+        
+        # Ensure at least one view is present (fallback)
         if not page.views:
-            print("Warning: No view was added for the route. Adding Login view as fallback.")
-            try:
-                 page.views.append(create_login_view(page))
-            except NameError:
-                  page.views.append(ft.View("/", [ft.Text("Error: Login View Missing")]))
+            print("Warning: No view was added. Adding login view as fallback.")
+            page.views.append(create_login_view(page))
 
-        page.update() # Refresh the page to show the new view
+        page.update()
 
-    def view_pop(view_event: ft.ViewPopEvent): # Use specific event type hinting
-        """Handles the user going back (e.g., OS back button, swipe gesture)."""
+    def view_pop(event: ft.ViewPopEvent):
+        """Handle back navigation (e.g., OS back button, swipe gesture)."""
         print("View pop triggered (User went back)")
+        
         if len(page.views) <= 1:
             print("Cannot pop the last view. Preventing pop.")
-            # Optionally close the app or do nothing
-            # page.window_close()
-            return # Prevent Flet's default pop which might close app
-
-        page.views.pop() # Remove the top view from the stack
+            return
+        
+        page.views.pop()
         top_view = page.views[-1]
         print(f"Popped view, going back to: {top_view.route}")
-        page.go(top_view.route) # Manually trigger route change to the previous view
+        page.go(top_view.route)
 
-    # Assign the handlers to the page events
+    # Assign event handlers
     page.on_route_change = route_change
     page.on_view_pop = view_pop
-
-    # --- Global Resize Handler (Optional - kept simple) ---
-    def on_resize(e=None):
-        pass # No action on resize for now
-
-    page.on_resize = on_resize
-
-    # ─── Initial Route ────────────────────────────────────────
-    print("Starting app, navigating to initial route '/' ...")
-    # Start at the root, route_change will handle displaying the login view
+    
+    # Start at the main screen
     page.go("/main_screen")
 
 
-# --- Run the App Entry Point ---
 if __name__ == "__main__":
-    # First, check if the assets directory itself exists
+    # Initialize database
     create_db_and_tables()
+    
+    # Check if assets directory exists and contains required files
     if not os.path.isdir(ASSETS_DIR):
-         print(f"ERROR: Assets directory '{ASSETS_DIR}' not found.")
-         print("Application cannot start without the assets directory.")
-    else:
-        # Proceed with asset check only if directory exists
-        assets_ok, _ = check_assets()
-        if assets_ok:
-            print(f"Starting Flet app with assets_dir='{ASSETS_DIR}'")
-            ft.app(
-                target=main,
-                assets_dir=ASSETS_DIR # Ensure this points correctly to your assets folder
-            )
-        else:
-            print("\nApplication cannot start due to missing assets. Please fix the issues listed above.")
+        print(f"ERROR: Assets directory '{ASSETS_DIR}' not found or could not be created.")
+        print("Application cannot start without the assets directory.")
+        sys.exit(1)
+    
+    # Verify required assets
+    assets_ok, missing_assets = check_assets()
+    if not assets_ok:
+        print(f"WARNING: Missing required assets: {missing_assets}")
+        print("The application may not function correctly without these files.")
+    
+    # Start the application
+    print(f"Starting Flet app with assets_dir='{ASSETS_DIR}'")
+    ft.app(
+        target=main,
+        assets_dir=ASSETS_DIR
+    )

@@ -16,7 +16,6 @@ class Course(SQLModel, table=True):
     start_date: date
     end_date: date
     is_male_type: bool
-
     # Direct enrollments
     students: List["Student"] = Relationship(back_populates="course")
 
@@ -29,7 +28,7 @@ class Student(SQLModel, table=True):
     is_male: bool
     faculty_id: int = Field(foreign_key="faculty.id")
     course_id: int = Field(foreign_key="course.id")    # ← new FK
-    seq_number: str
+    seq_number: int
     national_id: str
     qr_code: str
     photo_path: Optional[str] = ""

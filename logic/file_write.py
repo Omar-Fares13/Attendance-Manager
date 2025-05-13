@@ -1,59 +1,85 @@
+"""
+Excel file generation utilities for student data exports.
+Provides functions to format and export student data to Excel files.
+"""
+import os
+import sys
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
+import tkinter as tk
+from tkinter import filedialog
+
+import pandas as pd
+import flet as ft
+
 from logic.students import get_students
 
-def get_student_data(course_id, faculty_id = None, student_name = None):
-    attribs = {'course_id' : course_id}
+
+def get_student_data(course_id: int, faculty_id: Optional[int] = None, 
+                     student_name: Optional[str] = None) -> List[List[Any]]:
+    """
+    Get formatted student data for a course with optional filters.
+    
+    Args:
+        course_id: ID of the course
+        faculty_id: Optional ID of the faculty to filter by
+        student_name: Optional student name to search for
+        
+    Returns:
+        List of formatted student data rows
+    """
+    # Build query attributes
+    attribs = {'course_id': course_id}
     if faculty_id:
         attribs['faculty_id'] = faculty_id
     if student_name:
         attribs['name'] = student_name
+        
     print("Looking up students with " + "=" * 30)
     print(attribs)
+    
+    # Get and format student data
     students = get_students(attribs)
     return format_students(students)
 
-def get_warnings(student):
-    warnings = 0
-    for note in student.notes:
-        if note.is_warning:
-            warnings = warnings + 1
-    return warnings
 
-def get_notes(std):
-    final_notes = ""
-    for note in std.notes:
-        if final_notes:
-            final_notes += '|'
-        final_notes += note.note
-    return final_notes
+def get_warnings(student) -> int:
+    """Count warning notes for a student."""
+    return sum(1 for note in student.notes if note.is_warning)
 
-def format_students(students):
-    formated_students = [
+
+def get_notes(student) -> str:
+    """Concatenate all notes for a student with '|' separator."""
+    return '|'.join(note.note for note in student.notes)
+
+
+def format_students(students) -> List[List[Any]]:
+    """Format student objects into rows of data for reports."""
+    formatted_students = [
         [std.seq_number,
-         std.name,
+         str(std.name),  # Ensure name is a string
          std.national_id,
          std.faculty.name,
          get_warnings(std),
          len(std.attendance),
-         12 - len(std.attendance),
+         12 - len(std.attendance),  # Calculate absences based on 12 total days
          "ناجح" if len(std.attendance) >= 10 else "راسب",
          get_notes(std),
         ]
         for std in students
     ]
-    for i in range(len(formated_students)):
-        formated_students[i][1] = str(formated_students[i][1])
-        formated_students[i][6] -= formated_students[i][5]
-    return formated_students
+    
+    # Calculate actual absences
+    for i in range(len(formatted_students)):
+        formatted_students[i][6] = 12 - formatted_students[i][5]
+        
+    return formatted_students
 
 
-
-import os
-import pandas as pd
-
-
-def extract_xlsx(e, page, report_dates, processed_data, headers):
+def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str], 
+                processed_data: List[Dict[str, Any]], headers: List[str]) -> None:
     """
-    Extract attendance data to Excel file
+    Extract attendance data to Excel file with user-selected save location.
     
     Args:
         e: Event from button click
@@ -66,7 +92,7 @@ def extract_xlsx(e, page, report_dates, processed_data, headers):
     excel_rows = []
     
     # Track attendance statistics
-    attendance_threshold = 8  # Students need to attend at least 8 days to pass (configurable)
+    attendance_threshold = 8  # Students need to attend at least 8 days to pass
     
     # Process each student's data
     for student in processed_data:
@@ -125,27 +151,71 @@ def extract_xlsx(e, page, report_dates, processed_data, headers):
     # Get course name from page or use default
     course_name = getattr(page, 'course_name', 'attendance_report') + "_بالايام"
     
-    # Call function to create Excel file
-    create_excel(extended_headers, sorted_data, course_name)
-    
-    # Show success message (could use a Flet snackbar here)
-    print(f"تم استخراج ملف Excel: {course_name}")
+    # Show file dialog to choose save location
+    file_path = show_save_dialog(course_name)
+    if file_path:
+        # Call function to create Excel file
+        create_excel(extended_headers, sorted_data, file_path)
+        
+        # Show success message using Flet
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(f"تم استخراج ملف Excel: {os.path.basename(file_path)}")
+        )
+        page.snack_bar.open = True
+        page.update()
+    else:
+        # User canceled save dialog
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text("تم إلغاء عملية حفظ الملف")
+        )
+        page.snack_bar.open = True
+        page.update()
 
 
-def create_excel(headers: list[str], rows: list[list], course_name: str) -> None:
+def show_save_dialog(default_filename: str) -> Optional[str]:
     """
-    Create an Excel file with the given headers and rows.
+    Show a file save dialog and return the selected path.
+    
+    Args:
+        default_filename: Default name for the file
+        
+    Returns:
+        Selected file path or None if canceled
+    """
+    # Hide the main tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # On some platforms, need to force to foreground
+    root.attributes('-topmost', True)
+    
+    # Show the save file dialog
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".xlsx",
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        initialfile=f"{default_filename}.xlsx",
+        title="حفظ تقرير Excel"
+    )
+    
+    # Destroy the tkinter instance
+    root.destroy()
+    
+    return file_path if file_path else None
+
+
+def create_excel(headers: List[str], rows: List[List[Any]], file_path: str) -> None:
+    """
+    Create an Excel file with the given headers and rows at the specified path.
     
     Args:
         headers: List of column headers
         rows: List of data rows
-        course_name: Name of the course (used in filename)
+        file_path: Full path where Excel file should be saved
     """
-    # Ensure data directory exists
-    os.makedirs("data", exist_ok=True)
-    file_path = os.path.join("data", f"{course_name}.xlsx")
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    # Build DataFrame and write out
+    # Build DataFrame
     df = pd.DataFrame(rows, columns=headers)
     
     # Create a writer with xlsxwriter engine for more formatting options
@@ -188,37 +258,42 @@ def create_excel(headers: list[str], rows: list[list], course_name: str) -> None
             'border': 1
         })
         
-        # Apply formats
+        # Apply header format
         for col_num, value in enumerate(headers):
             worksheet.write(0, col_num, value, header_format)
         
         # Format data cells
         for row_num, row_data in enumerate(rows):
+            # Skip header row
+            row_offset = row_num + 1  # +1 because we have a header row
+            
             for col_num, cell_value in enumerate(row_data):
-                # Skip header row
-                if row_num == 0:
-                    continue
-                    
                 # Format based on content
                 if col_num >= 3 and col_num < len(headers) - 2:
                     # Attendance cells
                     if cell_value != "غائب" and cell_value != "-":
-                        worksheet.write(row_num + 1, col_num, cell_value, present_format)
+                        worksheet.write(row_offset, col_num, cell_value, present_format)
                     else:
-                        worksheet.write(row_num + 1, col_num, cell_value, absent_format)
+                        worksheet.write(row_offset, col_num, cell_value, absent_format)
                 elif col_num == len(headers) - 2:
                     # Status column
                     if cell_value == "ناجح":
-                        worksheet.write(row_num + 1, col_num, cell_value, pass_format)
+                        worksheet.write(row_offset, col_num, cell_value, pass_format)
                     elif cell_value == "راسب":
-                        worksheet.write(row_num + 1, col_num, cell_value, fail_format)
+                        worksheet.write(row_offset, col_num, cell_value, fail_format)
                     else:
-                        worksheet.write(row_num + 1, col_num, cell_value)
+                        worksheet.write(row_offset, col_num, cell_value)
                 else:
-                    worksheet.write(row_num + 1, col_num, cell_value)
+                    worksheet.write(row_offset, col_num, cell_value)
         
         # Auto-adjust column widths
         for i, width in enumerate([10, 20, 15] + [12] * (len(headers) - 5) + [10, 10]):
             worksheet.set_column(i, i, width)
     
     print(f"Excel exported to {file_path}")
+
+
+if __name__ == "__main__":
+    # Test code to run when module is executed directly
+    print("This module provides Excel generation functions for the application.")
+    print("It should be imported and used by other modules, not run directly.")
