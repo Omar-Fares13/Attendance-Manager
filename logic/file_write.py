@@ -6,8 +6,6 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-import tkinter as tk
-from tkinter import filedialog
 
 import pandas as pd
 import flet as ft
@@ -151,56 +149,58 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
     # Get course name from page or use default
     course_name = getattr(page, 'course_name', 'attendance_report') + "_بالايام"
     
-    # Show file dialog to choose save location
-    file_path = show_save_dialog(course_name)
-    if file_path:
-        # Call function to create Excel file
-        create_excel(extended_headers, sorted_data, file_path)
-        
-        # Show success message using Flet
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text(f"تم استخراج ملف Excel: {os.path.basename(file_path)}")
-        )
-        page.snack_bar.open = True
-        page.update()
-    else:
-        # User canceled save dialog
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text("تم إلغاء عملية حفظ الملف")
-        )
-        page.snack_bar.open = True
-        page.update()
+    # Setup file picker for saving
+    setup_file_picker(page, course_name, extended_headers, sorted_data)
 
 
-def show_save_dialog(default_filename: str) -> Optional[str]:
+def setup_file_picker(page: ft.Page, default_filename: str, headers: List[str], data: List[List[Any]]) -> None:
     """
-    Show a file save dialog and return the selected path.
+    Set up a file picker for saving Excel files.
     
     Args:
-        default_filename: Default name for the file
-        
-    Returns:
-        Selected file path or None if canceled
+        page: Flet page object
+        default_filename: Default filename for the save dialog
+        headers: List of column headers for the Excel file
+        data: List of rows for the Excel file
     """
-    # Hide the main tkinter window
-    root = tk.Tk()
-    root.withdraw()
+    # Define the result handler for the file picker dialog
+    def save_file_result(e: ft.FilePickerResultEvent):
+        if e.path:
+            file_path = e.path
+            # Ensure file has the correct extension
+            if not file_path.endswith('.xlsx'):
+                file_path += '.xlsx'
+            
+            # Call function to create Excel file
+            create_excel(headers, data, file_path)
+            
+            # Show success message using Flet
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"تم استخراج ملف Excel: {os.path.basename(file_path)}")
+            )
+            page.snack_bar.open = True
+            page.update()
+        else:
+            # User canceled save dialog
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("تم إلغاء عملية حفظ الملف")
+            )
+            page.snack_bar.open = True
+            page.update()
+
+    # Create the FilePicker instance
+    file_picker = ft.FilePicker(on_result=save_file_result)
     
-    # On some platforms, need to force to foreground
-    root.attributes('-topmost', True)
+    # Add the file picker to the page's overlay
+    page.overlay.append(file_picker)
+    page.update()
     
-    # Show the save file dialog
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".xlsx",
-        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
-        initialfile=f"{default_filename}.xlsx",
-        title="حفظ تقرير Excel"
+    # Open the save file dialog
+    file_picker.save_file(
+        dialog_title="حفظ تقرير Excel",
+        file_name=f"{default_filename}.xlsx",
+        allowed_extensions=["xlsx"]
     )
-    
-    # Destroy the tkinter instance
-    root.destroy()
-    
-    return file_path if file_path else None
 
 
 def create_excel(headers: List[str], rows: List[List[Any]], file_path: str) -> None:

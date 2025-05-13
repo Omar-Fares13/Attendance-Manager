@@ -1,9 +1,7 @@
 import os
 import io
 import threading
-import time
 import flet as ft
-from tkinter import filedialog, Tk
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
@@ -12,8 +10,9 @@ from logic.qr_generator import generate_qr_code
 
 def generate_qr_pdfs(page: ft.Page):
     """Generate PDF files for all students with their QR codes"""
-    
+
     # Function to show success/error messages
+    # This runs on the main UI thread, so it's safe
     def show_snackbar(message, color=ft.colors.GREEN):
         page.snack_bar = ft.SnackBar(
             content=ft.Text(message, text_align=ft.TextAlign.RIGHT),
@@ -21,7 +20,12 @@ def generate_qr_pdfs(page: ft.Page):
         )
         page.snack_bar.open = True
         page.update()
-    
+
+    # Helper function to update UI elements from a background thread
+    # Flet requires UI updates to be done on the main thread
+    def run_on_ui_thread(func):
+        page.run_thread(func)
+
     # Create progress dialog components first
     progress = ft.ProgressBar(width=300, value=0)
     progress_text = ft.Text("جاري إنشاء الملفات...")
@@ -30,33 +34,36 @@ def generate_qr_pdfs(page: ft.Page):
         title=ft.Text("إنشاء ملفات PDF"),
         content=ft.Column([progress_text, progress], tight=True),
     )
-    
-    # Function to create the actual PDFs
-    def process_pdf_generation():
+
+    # Function to handle opening/closing the progress dialog
+    def update_progress_dialog(open_status):
+        page.dialog = progress_dialog
+        progress_dialog.open = open_status
+        page.update()
+
+    # Function to update the progress bar and text
+    def update_progress(value, text):
+        progress.value = value
+        progress_text.value = text
+        page.update()
+
+    # Function to create the actual PDFs - MODIFIED TO ACCEPT save_dir
+    def process_pdf_generation(save_dir):
         try:
             # Get students with all relationships preloaded
             students = get_all_students_with_relationships()
             if not students:
-                show_snackbar("لا يوجد طلاب مسجلين", ft.colors.AMBER_700)
+                # Use run_on_ui_thread to show snackbar from the thread
+                run_on_ui_thread(lambda: show_snackbar("لا يوجد طلاب مسجلين", ft.colors.AMBER_700))
                 return
-            
-            # We need to ask for directory BEFORE starting the thread
-            # This is handled in the main function below
-            save_dir = page.client_storage.get("temp_save_dir")
-            
-            if not save_dir:  # User cancelled
-                show_snackbar("تم إلغاء العملية", ft.colors.AMBER_700)
-                return
-            
-            # Show progress dialog
-            page.dialog = progress_dialog
-            progress_dialog.open = True
-            page.update()
-            
+
+            # Show progress dialog - Use run_on_ui_thread
+            run_on_ui_thread(lambda: update_progress_dialog(True))
+
             # Generate PDFs for each student
             total = len(students)
             success_count = 0
-            
+
             for i, student in enumerate(students):
                 try:
                     # Get course information
@@ -64,72 +71,93 @@ def generate_qr_pdfs(page: ft.Page):
                     if not course:
                         print(f"Warning: No course found for student {student.name} (ID: {student.id})")
                         continue
-                    
+
                     # Format date ranges for the filename (day/month only)
+                    # Assuming start_date and end_date are datetime objects
                     start_date_str = course.start_date.strftime("%d-%m")
                     end_date_str = course.end_date.strftime("%d-%m")
                     date_range = f"{start_date_str}-{end_date_str}"
-                    
+
                     # Format filename: seq_faculty_gender_daterange.pdf
+                    # Assuming is_male is a boolean
                     gender = "ذكور" if student.is_male else "اناث"
+                    # Assuming student.faculty.name exists and is a string
                     faculty_name = student.faculty.name.replace(" ", "_")
+                    # Assuming student.seq_number exists and is a string/number
                     filename = f"{student.seq_number}_{faculty_name}_{gender}_{date_range}.pdf"
                     filepath = os.path.join(save_dir, filename)
-                    
+
                     # Create PDF
                     buffer = io.BytesIO()
                     p = canvas.Canvas(buffer, pagesize=A4)
-                    
+
                     # Generate QR code and convert to ImageReader
-                    qr_buffer = generate_qr_code(student.qr_code)
+                    # Assuming student.qr_code contains the data for the QR
+                    qr_buffer = generate_qr_code(student.qr_code) # This should return bytes or a bytes-like object
                     img = ImageReader(qr_buffer)
                     p.drawImage(img, 175, 400, width=250, height=250)
-                    
+
                     p.save()
-                    
+
                     # Save the PDF
                     with open(filepath, 'wb') as f:
                         f.write(buffer.getvalue())
-                    
+
                     success_count += 1
-                    
-                    # Update progress
-                    progress.value = (i + 1) / total
-                    progress_text.value = f"تم إنشاء {i+1} من {total} ملف"
-                    page.update()
-                    
+
+                    # Update progress - Use run_on_ui_thread
+                    run_on_ui_thread(lambda: update_progress((i + 1) / total, f"تم إنشاء {i+1} من {total} ملف"))
+
                 except Exception as e:
                     print(f"Error creating PDF for student {student.name}: {e}")
-            
-            # Close progress dialog
-            progress_dialog.open = False
-            page.update()
-            
-            # Show completion message
-            show_snackbar(f"تم إنشاء {success_count} من {total} ملف PDF بنجاح")
-            
+                    # Log error for this specific student, but continue
+
+            # Close progress dialog - Use run_on_ui_thread
+            run_on_ui_thread(lambda: update_progress_dialog(False))
+
+            # Show completion message - Use run_on_ui_thread
+            run_on_ui_thread(lambda: show_snackbar(f"تم إنشاء {success_count} من {total} ملف PDF بنجاح"))
+
         except Exception as e:
-            # Show error message
+            # Show error message - Use run_on_ui_thread
             print(f"Error in PDF generation: {e}")
-            progress_dialog.open = False  # Make sure dialog is closed
-            page.update()
-            show_snackbar(f"حدث خطأ: {str(e)}", ft.colors.RED_700)
-    
-    # First ask for directory on the main thread
-    root = Tk()
-    root.attributes('-topmost', True)  # Force to front
-    root.lift()  # Bring window to front
-    root.focus_force()  # Force focus
-    root.withdraw()  # Hide the main window
-    
-    save_dir = filedialog.askdirectory(title="اختر مكان حفظ ملفات PDF", parent=root)
-    root.destroy()
-    
-    # Store directory in client storage for the thread to access
-    page.client_storage.set("temp_save_dir", save_dir)
-    
-    if save_dir:
-        # Run the process in a thread
-        threading.Thread(target=process_pdf_generation, daemon=True).start()
-    else:
-        show_snackbar("تم إلغاء العملية", ft.colors.AMBER_700)
+            # Make sure dialog is closed even on error
+            run_on_ui_thread(lambda: update_progress_dialog(False))
+            run_on_ui_thread(lambda: show_snackbar(f"حدث خطأ: {str(e)}", ft.colors.RED_700))
+
+
+    # --- Flet File Picker Logic (replaces Tkinter) ---
+
+    # Define the result handler for the file picker dialog
+    def pick_directory_result(e: ft.FilePickerResultEvent):
+        # e.path contains the selected directory path, or None if cancelled
+        save_dir = e.path if e.path else None
+
+        # No need for page.client_storage anymore
+        # page.client_storage.set("temp_save_dir", save_dir) # Remove this
+
+        if save_dir:
+            # If a directory was selected, start the background thread
+            # Pass the selected directory path to the thread function
+            threading.Thread(target=process_pdf_generation, args=(save_dir,), daemon=True).start()
+        else:
+            # If the user cancelled the dialog
+            show_snackbar("تم إلغاء العملية", ft.colors.AMBER_700)
+
+    # Create the FilePicker instance
+    # This control doesn't have a visual representation, it just opens the OS dialog
+    file_picker = ft.FilePicker(on_result=pick_directory_result)
+
+    # Add the file picker to the page's overlay
+    # Overlay is a list of controls displayed on top of everything else.
+    # This is necessary for the FilePicker to work correctly within Flet.
+    page.overlay.append(file_picker)
+    page.update() # Update the page to ensure the file_picker is added
+
+    # Open the native directory picker dialog
+    file_picker.get_directory_path(
+        dialog_title="اختر مكان حفظ ملفات PDF"
+    )
+
+    # The rest of the logic happens asynchronously in the pick_directory_result handler
+    # and then in the process_pdf_generation thread.
