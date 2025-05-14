@@ -9,7 +9,8 @@ from logic.attendance import get_attendance_by_student_id
 from datetime import date, timedelta, time
 from sqlmodel import select
 from db import get_session
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # Define Colors & Constants
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"
@@ -225,6 +226,20 @@ def create_attendance_table(page: ft.Page, student_id: int, course_start_date: d
 
 def create_edit_student_view(page: ft.Page):
     """Creates the Flet View for the Edit Student Data screen."""
+    
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
+
+    
     faculties = get_all_faculties()
     for fac in faculties:
         faculty_lookup[fac.id] = fac.name

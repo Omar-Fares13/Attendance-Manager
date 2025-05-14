@@ -1,13 +1,14 @@
 # views/report_view_days.py
 
 import flet as ft
-
+import math
 from logic import course
 from logic.students import create_students_from_file
 from components.banner import create_banner
 from logic.file_write import extract_xlsx
-from logic.attendance import get_attendance_by_student_id
-from datetime import date, time, timedelta
+from datetime import date, timedelta
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 from logic.attendance import get_attendance_data
 
 # Set locale for Arabic weekday names
@@ -229,24 +230,45 @@ def create_data_rows(dates, processed_data):
 
 
 def create_report_alt_view(page: ft.Page):
-    """Create the main attendance report view"""
-    # Get dates for our report
+    sequence_monitor = InputSequenceMonitor(page)
+
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
+
+    # 1) Get dates & headers exactly as before
     report_dates = get_report_dates(page)
-    
-    # Create headers and columns
-    headers = create_headers(report_dates)
-    columns = create_data_columns(headers)
-    
-    # Sample data (in a real app, this would come from a database)
-    sample_data = get_attendance_data(page, report_dates)
-    
-    # Create data rows
-    rows = create_data_rows(report_dates, sample_data)
-    
-    # Create the data table
+    headers       = create_headers(report_dates)
+    columns       = create_data_columns(headers)
+
+    # 2) Get the raw attendance data
+    sample_data   = get_attendance_data(page, report_dates)
+
+    # 3) Build ALL rows once
+    all_rows      = create_data_rows(report_dates, sample_data)
+
+    # ------------ Pagination settings -------------
+    rows_per_page = 30          # tweak to whatever fits the screen
+    total_pages   = max(1, math.ceil(len(all_rows) / rows_per_page))
+    current_page  = 0           # zero-based index
+    # ----------------------------------------------
+
+    # Helper that returns the slice for a given page
+    def page_rows(page_index: int) -> list[ft.DataRow]:
+        start = page_index * rows_per_page
+        end   = start + rows_per_page
+        return all_rows[start:end]
+
+    # 4) Build the DataTable with ONLY page-0 rows
     data_table = ft.DataTable(
         columns=columns,
-        rows=rows,
+        rows=page_rows(current_page),
         border=ft.border.all(1, TABLE_BORDER_COLOR),
         border_radius=ft.border_radius.all(8),
         vertical_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
@@ -258,47 +280,56 @@ def create_report_alt_view(page: ft.Page):
         column_spacing=10,
     )
 
+    # 5) Navigation bar ------------------------------------------------
+    page_number_text = ft.Text(
+        f"{current_page+1} / {total_pages}",
+        weight=ft.FontWeight.BOLD,
+        size=16
+    )
+
+    def refresh_table():
+        nonlocal current_page
+        # clamp to valid range
+        current_page = max(0, min(current_page, total_pages - 1))
+        data_table.rows = page_rows(current_page)
+        page_number_text.value = f"{current_page+1} / {total_pages}"
+        page.update()
+
+    def next_page(e):
+        nonlocal current_page
+        if current_page < total_pages - 1:
+            current_page += 1
+            refresh_table()
+
+    def prev_page(e):
+        nonlocal current_page
+        if current_page > 0:
+            current_page -= 1
+            refresh_table()
+
+    nav_bar = ft.Row(
+        [
+            ft.IconButton(
+                icon=ft.icons.CHEVRON_RIGHT,             # right-to-left UI
+                on_click=prev_page,
+                tooltip="السابق"
+            ),
+            page_number_text,
+            ft.IconButton(
+                icon=ft.icons.CHEVRON_LEFT,
+                on_click=next_page,
+                tooltip="التالي"
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+    )
+    # ------------------------------------------------------------------
+
+    # (unchanged) Excel export button, back button, etc.
     def go_back(e):
         page.go("/report_course")
 
-
-    # Excel export button handler
-    def handle_excel_export(e):
-        extract_xlsx(e, page, report_dates, sample_data, headers)
-    
-    back_button = ft.IconButton(
-        icon=ft.icons.ARROW_FORWARD_OUTLINED,
-        icon_color=PRIMARY_COLOR,
-        tooltip="العودة",
-        on_click=go_back,
-        icon_size=30
-    )
-
-    title = ft.Text(
-        "تقرير مفصل بالايام",
-        size=32,
-        weight=ft.FontWeight.BOLD,
-        color=PRIMARY_COLOR,
-        font_family=FONT_FAMILY_BOLD,
-        text_align=ft.TextAlign.CENTER
-    )
-
-
-    # Create the data table
-    data_table = ft.DataTable(
-        columns=columns,
-        rows=rows,
-        border=ft.border.all(1, TABLE_BORDER_COLOR),
-        border_radius=ft.border_radius.all(8),
-        vertical_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
-        horizontal_lines=ft.border.BorderSide(1, TABLE_BORDER_COLOR),
-        heading_row_height=80,
-        data_row_min_height=60,
-        data_row_max_height=80,
-        divider_thickness=1,
-        column_spacing=10,
-    )
-
+    # ... your Excel export handler / banner / title code here …
 
     excel_button = ft.ElevatedButton(
         key="confirm_section",
@@ -308,7 +339,9 @@ def create_report_alt_view(page: ft.Page):
         color=BUTTON_TEXT_COLOR,
         height=50,
         width=220,
-        on_click=handle_excel_export,
+        on_click=lambda e: extract_xlsx(
+            e, page, report_dates, sample_data, headers
+        ),
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
     )
 
@@ -324,20 +357,39 @@ def create_report_alt_view(page: ft.Page):
 
     banner_control = create_banner()
 
+    # 6) Put everything together
     content_column = ft.Column(
         [
-            ft.Container(
-                content=ft.Row([back_button], alignment=ft.MainAxisAlignment.START),
-                padding=ft.padding.only(top=15, left=30, right=30)
-            ),
-            ft.Container(
-                content=title,
-                padding=ft.padding.symmetric(horizontal=30),
-                alignment=ft.alignment.center
-            ),
+            # back button row
+            ft.Container(ft.Row([ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED,
+                                              tooltip="العودة",
+                                              icon_color=PRIMARY_COLOR,
+                                              on_click=go_back,
+                                              icon_size=30)],
+                                alignment=ft.MainAxisAlignment.START),
+                         padding=ft.padding.only(top=15, left=30, right=30)),
+
+            # title
+            ft.Container(ft.Text("تقرير مفصل بالايام",
+                                 size=32,
+                                 weight=ft.FontWeight.BOLD,
+                                 color=PRIMARY_COLOR,
+                                 font_family=FONT_FAMILY_BOLD,
+                                 text_align=ft.TextAlign.CENTER),
+                         padding=ft.padding.symmetric(horizontal=30),
+                         alignment=ft.alignment.center),
+
+            # DATA TABLE
             data_table,
+
+            # pagination navigation bar
+            nav_bar,
+
             ft.Container(height=30),
+
+            # Excel button
             ft.Row([excel_button], alignment=ft.MainAxisAlignment.CENTER),
+
             ft.Container(height=30),
         ],
         ref=content_ref,

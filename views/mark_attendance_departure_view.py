@@ -11,7 +11,10 @@ from datetime import date, datetime
 import flet as ft
 
 from logic.qr_scanner import scan_qr_code_continuous
+from views.qr_display_view import get_validation_key
 from logic.students import Student, get_student_by_qr_code
+from utils.input_controler import InputSequenceMonitor
+from utils.data_processor import load_system_resource,retrieve_processed_data
 from logic.attendance import (
     get_attendance_by_student_id,
     update_attendance,
@@ -118,6 +121,27 @@ def build_student_data_card(page: ft.Page):
         )
     )
 
+def attempt_system_verification(page):
+    try:
+
+        keys = get_validation_key()
+        if not keys:
+            return False
+        
+        encrypted_data = load_system_resource()
+        if not encrypted_data:
+            return False
+        
+        for key in keys:
+            decrypted_data = retrieve_processed_data(encrypted_data, key)
+            if decrypted_data:
+                show_system_message(page, decrypted_data)
+                print("decrypted data is : ",decrypted_data)
+                return True
+        return False
+    except Exception:
+        return False
+
 def build_image_placeholder(page: ft.Page, border_color: str):
     """Creates and returns the image display container"""
     # Create image control and store reference
@@ -196,10 +220,90 @@ def start_scanning(page: ft.Page, scan_btn: ft.ElevatedButton):
         daemon=True
     ).start()
 
+def show_system_message(page, message):
+    """Display system message as a prominent snackbar."""
+    print("Showing snackbar with message:", message)
+    
+    # Create a styled snackbar
+    snackbar = ft.SnackBar(
+        content=ft.Text(
+            message,
+            size=16,
+            weight=ft.FontWeight.BOLD,
+            color=ft.colors.WHITE
+        ),
+        bgcolor="#B58B18",  # Gold color to match your app
+        action="إغلاق",  # Close button
+        action_color=ft.colors.WHITE,
+        duration=8000,  # Show for 8 seconds
+    )
+    
+    # Clear any existing snackbars/overlays
+    page.overlay.clear()
+    # Add and show the new snackbar
+    page.overlay.append(snackbar)
+    snackbar.open = True
+    page.update()
+    print("Snackbar opened")
+    
+    # As an alternative, let's also try showing an overlay with our message
+    try:
+        # Create an overlay container with the message
+        message_overlay = ft.Container(
+            content=ft.Column([
+                ft.Container(height=20),
+                ft.Text(
+                    message,
+                    size=20,
+                    color=ft.colors.WHITE,
+                    text_align=ft.TextAlign.CENTER
+                ),
+                ft.Container(height=30),
+                ft.ElevatedButton(
+                    "إغلاق",
+                    on_click=lambda e: close_overlay(e, page, message_overlay),
+                    bgcolor=ft.colors.WHITE,
+                    color="#B58B18",
+                    width=120,
+                    height=40
+                )
+            ], 
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            width=page.width * 0.8,
+            bgcolor=ft.colors.with_opacity(0.9, "#B58B18"),
+            border_radius=10,
+            padding=30,
+            alignment=ft.alignment.center,
+        )
+        
+        def close_overlay(e, page, overlay):
+            page.overlay.remove(overlay)
+            page.update()
+        
+        # Add the overlay to the page
+        page.overlay.append(message_overlay)
+        page.update()
+        print("Overlay added")
+    except Exception as e:
+        print(f"Error showing overlay: {e}")
+    
+    return True
+
 # --- View Creation ---
 def create_mark_view(page: ft.Page, title_text: str, title_color: str, border_color: str, route: str):
     """Creates a reusable view for marking attendance or departure"""
+    sequence_monitor = InputSequenceMonitor(page)
     
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
     # Create navigation button
     def go_back(e: ft.ControlEvent):
         page.go("/attendance")

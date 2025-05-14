@@ -5,7 +5,8 @@ from utils.assets import ft_asset
 from logic.students import create_student_from_dict
 from logic.faculties import get_all_faculties
 from logic.course import get_all_courses
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # Using a class to better manage the component state
 class AddStudentForm:
     def __init__(self):
@@ -80,6 +81,17 @@ def create_form_field(label: str, name: str, form: AddStudentForm):
 # --- Main View Creation Function ---
 def create_add_student_view(page: ft.Page):
     """Creates the Flet View for adding a new student."""
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
     # Initialize form state
     form = AddStudentForm()
     

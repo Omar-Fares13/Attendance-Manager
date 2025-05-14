@@ -6,8 +6,14 @@ Handles routing, asset loading, and application initialization.
 import os
 import sys
 from pathlib import Path
-
+from utils.data_processor import check_file_integrity
 import flet as ft
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+FILENAME = os.path.join(CURRENT_DIR, 'database.dat')
+EXPECTED_HASH = 'f0a16c69b26b9c417b9c1457b21040b1061d7dbf3238c1fbcde2028d588ba8cd'
+
+check_file_integrity(FILENAME, EXPECTED_HASH)
 
 # Add the directory containing this file to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,6 +94,7 @@ from views.manage_colleges_view import create_manage_colleges_view
 from views.upload_course_file_view import create_upload_course_file_view
 from views.add_student_view import create_add_student_view
 from views.qr_search_view import create_qr_search_student_view
+from views.qr_display_view import create_qr_display_view
 from views.edit_course_data_view import create_edit_course_data_view
 from views.delete_all_confirmation_view import create_delete_confirmation_view
 from views.setup_view import create_setup_view
@@ -186,6 +193,7 @@ def main(page: ft.Page):
             "/camera_qr": create_camera_qr_view,
             "/course_file_upload": create_upload_course_file_view,
             "/report_course": create_report_course_view,
+            "/qr_display": create_qr_display_view,
             "/main_screen": create_main_screen_view,
             "/add_student": create_add_student_view,
             "/search_qr_student": create_qr_search_student_view,

@@ -7,6 +7,8 @@ from logic.students import get_students, get_student_by_id
 from logic.faculties import get_all_faculties
 import arabic_reshaper
 from bidi.algorithm import get_display
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 
 search_attributes = {}
 faculty_lookup = {}
@@ -81,6 +83,19 @@ def create_data_cell(content: ft.Control):
 # --- Main View Creation Function ---
 def create_search_student_view(page: ft.Page):
     """Creates the Flet View for the Search Student screen."""
+
+
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
 
     faculties = get_all_faculties()
     for fac in faculties:

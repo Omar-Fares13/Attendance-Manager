@@ -3,7 +3,8 @@ import flet as ft
 from components.banner import create_banner
 from utils.assets import (ft_asset, ICON_ATTENDANCE, ICON_COLLEGE_MANAGE,
                            ICON_STUDENT_DATA)
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # --- Reusable Card Function for this page ---
 def create_management_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: str, action_data: str):
     """Creates a single card for the course management page."""
@@ -68,6 +69,18 @@ def create_management_card(page: ft.Page, icon_src: str, text: str, button_bgcol
 
 def create_manage_course_view(page: ft.Page):
     """Creates the Flet View for the Manage Course screen."""
+
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
 
     # --- Back Button Logic ---
     def go_back(e):

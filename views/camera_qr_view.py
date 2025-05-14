@@ -13,6 +13,8 @@ from logic.qr_generator import generate_qr_code
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # --- Asset and Banner Imports (Keep your original logic) ---
 try:
     from ..components.banner import create_banner
@@ -177,6 +179,18 @@ def show_qr_window(image, student_name, student_id):
 
 def create_camera_qr_view(page: ft.Page):
     """Creates the Flet View for the Camera/QR screen with live camera feed."""
+
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
 
     student['id'] = page.student_id
     edit_attributes['id'] = page.student_id

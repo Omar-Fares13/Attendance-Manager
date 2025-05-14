@@ -1,9 +1,11 @@
 import flet as ft
 from datetime import datetime
+import math
 from collections import defaultdict
 from components.banner import create_banner
 from logic.file_reader import read_pdf
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # Colors and style constants
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"
@@ -64,15 +66,83 @@ def create_faculty_row(faculty, count):
 
 
 def create_upload_course_file_view(page: ft.Page):
+    
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+    
+    def inputs_are_complete() -> bool:
+        """
+        Return True only when BOTH a file path and a date were selected.
+        """
+        return (
+            bool(selected_file_full_path.current)           # at least one pdf
+            and bool(file_students.get("date"))              # a date was picked
+        )
+
+    def show_error(msg: str):
+        page.snack_bar = ft.SnackBar(ft.Text(msg), open=True, bgcolor=ft.colors.RED)
+        page.snack_bar.open = True
+        page.update()
+
+    def update_next_button_state():
+        next_step_button.disabled = not inputs_are_complete()
+        page.update()
+    # ------------------------------------------------------------------
+    # Pagination state & helpers
+    # ------------------------------------------------------------------
+    ROWS_PER_PAGE = 25               # tweak as you like
+    current_page  = 0
+    total_pages   = 1                # will be updated after rows are loaded
+    all_rows      = []               # full list of DataRow objects
+
+    def slice_rows(idx: int):
+        start = idx * ROWS_PER_PAGE
+        end   = start + ROWS_PER_PAGE
+        return all_rows[start:end]
+
+    def refresh_table():
+        nonlocal current_page
+        if not all_rows:
+            data_table_ref.current.rows = []
+            nav_bar.visible = False
+        else:
+            current_page = max(0, min(current_page, total_pages - 1))
+            data_table_ref.current.rows = slice_rows(current_page)
+            page_label.value = f"{current_page+1} / {total_pages}"
+            nav_bar.visible = True
+        page.update()
+
+    def next_page(e):
+        nonlocal current_page
+        if current_page < total_pages - 1:
+            current_page += 1
+            refresh_table()
+
+    def prev_page(e):
+        nonlocal current_page
+        if current_page > 0:
+            current_page -= 1
+            refresh_table()
+    # ------------------------------------------------------------------
+
+    # ---------- (all your refs and constants stay unchanged) ----------
     file_path_field_ref = ft.Ref[ft.TextField]()
-    date_field_ref = ft.Ref[ft.TextField]()
-    file_picker_ref = ft.Ref[ft.FilePicker]()
-    date_picker_ref = ft.Ref[ft.DatePicker]()
+    date_field_ref      = ft.Ref[ft.TextField]()
+    file_picker_ref     = ft.Ref[ft.FilePicker]()
+    date_picker_ref     = ft.Ref[ft.DatePicker]()
     confirmation_dialog_ref = ft.Ref[ft.AlertDialog]()
     selected_file_full_path = ft.Ref[str]()
-    data_table_ref = ft.Ref[ft.DataTable]()
+    data_table_ref      = ft.Ref[ft.DataTable]()
     stats_container_ref = ft.Ref[ft.Container]()
-    faculty_stats_ref = ft.Ref[ft.Column]()
+    faculty_stats_ref   = ft.Ref[ft.Column]()
 
     file_students['is_male'] = page.is_male
     ismale = file_students['is_male']
@@ -94,7 +164,7 @@ def create_upload_course_file_view(page: ft.Page):
     data_table = ft.DataTable(
         ref=data_table_ref,
         columns=columns,
-        rows=rows,
+        rows=[],        # starts empty – will be filled by refresh_table()
         column_spacing=25,
         heading_row_color=PLACEHOLDER_DARK_HEADER,
         heading_row_height=45,
@@ -105,6 +175,21 @@ def create_upload_course_file_view(page: ft.Page):
         horizontal_lines=ft.border.BorderSide(1, ft.colors.with_opacity(0.15, ft.colors.BLACK)),
         expand=False,
     )
+
+    # ------------------------------------------------------------------
+    # Pagination navigation bar
+    # ------------------------------------------------------------------
+    page_label = ft.Text("1 / 1", weight=ft.FontWeight.BOLD, size=16)
+    nav_bar = ft.Row(
+        [
+            ft.IconButton(icon=ft.icons.CHEVRON_RIGHT, tooltip="السابق", on_click=prev_page),
+            page_label,
+            ft.IconButton(icon=ft.icons.CHEVRON_LEFT, tooltip="التالي", on_click=next_page),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        visible=False   # hidden until rows exist
+    )
+    # ------------------------------------------------------------------
 
     # Faculty stats column
     faculty_stats = ft.Column(
@@ -188,17 +273,16 @@ def create_upload_course_file_view(page: ft.Page):
 
     # --- Handlers ---
     def handle_confirm_upload(e):
+        # Close dialog if it is open
         if confirmation_dialog_ref.current:
             confirmation_dialog_ref.current.open = False
-        file_path = selected_file_full_path.current
-        file_name_display = file_path_field_ref.current.value if file_path_field_ref.current else "الملف المحدد"
 
-        if not file_path:
-            sb = ft.SnackBar(ft.Text("خطأ: لم يتم تحديد مسار الملف."), open=True, bgcolor=ft.colors.RED)
-            page.snack_bar = sb
-            page.snack_bar.open = True
-            page.update()
+        # VALIDATE
+        if not inputs_are_complete():
+            show_error("يجب اختيار الملف وتاريخ الدورة قبل المتابعة.")
             return
+
+        # Everything is OK – continue
         page.file_students = file_students
         page.go("/edit_course_data")
 
@@ -212,7 +296,9 @@ def create_upload_course_file_view(page: ft.Page):
         page.is_male = file_students['is_male']
         page.go("/register_course_options")
 
+     # --------------------  on_file_picked()  --------------------------
     def on_file_picked(e: ft.FilePickerResultEvent):
+        nonlocal total_pages, all_rows, current_page
         if not e.files:
             return
 
@@ -224,23 +310,29 @@ def create_upload_course_file_view(page: ft.Page):
                 file_path_field_ref.current.value = file.name
                 file_path_field_ref.current.error_text = None
 
-                # Parse PDF
-                students, faculty = read_pdf(file.path, ismale)
-                all_students.extend(students)
+            students, faculty = read_pdf(file.path, ismale)
+            all_students.extend(students)
 
         file_students['students'] = all_students
-        new_rows = [
+
+        # Build ALL rows once
+        all_rows = [
             ft.DataRow(cells=[
-                create_table_cell(student['seq_number']),
-                create_table_cell(student['name']),
-                create_table_cell(student['national_id']),
-                create_table_cell(student['faculty']),
+                create_table_cell(stu['seq_number']),
+                create_table_cell(stu['name']),
+                create_table_cell(stu['national_id']),
+                create_table_cell(stu['faculty']),
             ])
-            for student in all_students
+            for stu in all_students
         ]
-        data_table_ref.current.rows = new_rows
+
+        # Compute pagination stats & refresh
+        total_pages = max(1, math.ceil(len(all_rows) / ROWS_PER_PAGE))
+        current_page = 0
         update_stats()
-        page.update()
+        refresh_table()
+        update_next_button_state()
+    # ------------------------------------------------------------------
 
     def pick_file(e):
         if file_picker_ref.current:
@@ -280,6 +372,7 @@ def create_upload_course_file_view(page: ft.Page):
             if page.dialog == picker_instance:
                 page.dialog = None
             page.update()
+        update_next_button_state()
 
     # --- Picker setup ---
     fp_exists = any(isinstance(ctrl, ft.FilePicker) for ctrl in page.overlay)
@@ -298,7 +391,7 @@ def create_upload_course_file_view(page: ft.Page):
         new_dp = ft.DatePicker(
             ref=date_picker_ref,
             on_change=on_date_picked,
-            first_date=datetime(2020, 1, 1), last_date=datetime(2030, 12, 31),
+            first_date=datetime(2000, 1, 1), last_date=datetime(2030, 12, 31),
             help_text="اختر تاريخ بداية الدورة", cancel_text="إلغاء", confirm_text="تأكيد"
         )
         page.overlay.append(new_dp)
@@ -318,29 +411,6 @@ def create_upload_course_file_view(page: ft.Page):
     cancel_button_style = ft.ButtonStyle(
         color=WHITE_COLOR, bgcolor=CANCEL_BUTTON_COLOR, padding=ft.padding.symmetric(vertical=12, horizontal=40),
         shape=ft.RoundedRectangleBorder(radius=8)
-    )
-    confirmation_dialog = ft.AlertDialog(
-        ref=confirmation_dialog_ref, modal=True, bgcolor=DIALOG_BG_COLOR, shape=ft.RoundedRectangleBorder(radius=10),
-        content=ft.Column(
-            [
-                ft.Text(
-                    "هل أنت متأكد من صحة بيانات ملف الدورة\nوترغب في تأكيد رفع الملف؟",
-                    text_align=ft.TextAlign.CENTER, size=16, weight=ft.FontWeight.BOLD, color=TEXT_COLOR_DARK
-                ),
-                ft.Divider(height=10, color=ft.colors.TRANSPARENT),
-                ft.Text(
-                    "سيتم نقلك إلى شاشة المراجعة والتعديل.",
-                    text_align=ft.TextAlign.CENTER, size=14, color=TEXT_COLOR_DARK, weight=ft.FontWeight.W_500
-                ),
-            ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5
-        ),
-        content_padding=ft.padding.symmetric(horizontal=25, vertical=20),
-        actions=[
-            ft.ElevatedButton("تأكيد", on_click=handle_confirm_upload, style=confirm_button_style),
-            ft.ElevatedButton("الرجوع", on_click=handle_cancel_upload, style=cancel_button_style),
-        ],
-        actions_alignment=ft.MainAxisAlignment.SPACE_EVENLY,
-        actions_padding=ft.padding.only(bottom=20, left=20, right=20),
     )
 
     # --- UI controls ---
@@ -385,10 +455,13 @@ def create_upload_course_file_view(page: ft.Page):
         ),
     )
     next_step_button = ft.ElevatedButton(
-        text="تأكيد",
-        bgcolor=PRIMARY_COLOR, color=WHITE_COLOR, height=50, width=200,
-        on_click=handle_confirm_upload,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8), padding=ft.padding.symmetric(vertical=10))
+    text="تأكيد",
+    bgcolor=PRIMARY_COLOR, color=WHITE_COLOR,
+    height=50, width=200,
+    on_click=handle_confirm_upload,
+    disabled=True,                         # <── initially disabled
+    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8),
+                         padding=ft.padding.symmetric(vertical=10)),
     )
     info_text = ft.Row(
         [
@@ -421,6 +494,7 @@ def create_upload_course_file_view(page: ft.Page):
             ft.Row([info_text], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=15),
             stats_container,
+            nav_bar,
             ft.Row(
                 [ft.Container(content=data_table, width=700)],
                 alignment=ft.MainAxisAlignment.CENTER

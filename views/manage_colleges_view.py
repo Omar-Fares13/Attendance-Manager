@@ -1,7 +1,8 @@
 import flet as ft
 from components.banner import create_banner  # Assuming your banner component is here
 import functools  # Import functools for partial
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # Import CRUD operations (Ensure these functions are defined in your logic.faculties module)
 # And that faculty objects returned by get_all_faculties/get_faculties have a .students attribute
 # and student objects in that list have an .isMale attribute
@@ -220,7 +221,19 @@ class ManageCollegesState:
         self.total_females_text.update()
 # --- View Creation Function (No changes here from previous placeholder version) ---
 def create_manage_colleges_view(page: ft.Page):
+    
     view_state = ManageCollegesState(page)
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            ManageCollegesState.go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
     banner_control = create_banner()
 
     page_title = ft.Container(

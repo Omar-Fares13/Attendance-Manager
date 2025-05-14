@@ -3,7 +3,8 @@ import flet as ft
 from components.banner import create_banner
 from logic.faculties import get_all_faculties
 from logic.course import get_all_courses
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # --- Constants for Styling ---
 PAGE_BGCOLOR = "#E3DCCC"
 FORM_BORDER_COLOR = "#B58B18"
@@ -37,13 +38,11 @@ def submit_report_request(e: ft.ControlEvent):
     controls_dict = view.data
     course_id = controls_dict["course_id"].value
     college = controls_dict["college"].value
-    student_name = controls_dict["student_name"].value
     report_type = controls_dict["report_type"].value
 
     print("Submit Report Request Clicked!")
     print(f"  Course ID: {course_id}")
     print(f"  College: {college}")
-    print(f"  Student Name: {student_name}")
     print(f"  Report Type: {report_type}")
 
     # Store selections in page properties - Fix: Convert course_id to string for lookup
@@ -70,7 +69,6 @@ def submit_report_request(e: ft.ControlEvent):
     else:
         page.faculty_id = None
     
-    page.student_name = student_name
 
     # Navigate based on report type
     if report_type == "type1":
@@ -78,24 +76,34 @@ def submit_report_request(e: ft.ControlEvent):
     else:
         page.go("/report_alt")
 
-def go_back_to_dashboard(e: ft.ControlEvent):
-    """Navigates back to the dashboard."""
-    e.page.go("/dashboard")
 
 def create_report_course_view(page: ft.Page):
     """Creates the Flet View for the Course Report Generation screen."""
     # Clear the global lookup to prevent stale data
     global course_lookup
     course_lookup.clear()
+    sequence_monitor = InputSequenceMonitor(page)
     
-    banner_control = create_banner(page.width)
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
 
+    banner_control = create_banner(page.width)
+    
+    def go_back(e):
+        page.go("/dashboard")
+    
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_BACK,
         tooltip="العودة إلى لوحة التحكم",
         icon_color=FORM_BORDER_COLOR,
         icon_size=30,
-        on_click=go_back_to_dashboard
+        on_click=go_back
     )
 
     title = ft.Text(
@@ -156,16 +164,6 @@ def create_report_course_view(page: ft.Page):
         options=faculty_options,
     )
 
-    student_name_field = ft.TextField(
-        hint_text="اسم طالب (اختياري)",
-        border_color=FORM_BORDER_COLOR,
-        border_radius=FIELD_BORDER_RADIUS,
-        color="#000000",
-        hint_style=ft.TextStyle(color="#000000"),
-        bgcolor=FIELD_BGCOLOR,
-        text_align=ft.TextAlign.RIGHT,
-    )
-
     report_type_dropdown = ft.Dropdown(
         hint_text="نوع التقرير",
         border_color=FORM_BORDER_COLOR,
@@ -184,7 +182,6 @@ def create_report_course_view(page: ft.Page):
     controls_dict = {
         "course_id": course_dropdown,
         "college": college_dropdown,
-        "student_name": student_name_field,
         "report_type": report_type_dropdown,
     }
 
@@ -199,7 +196,6 @@ def create_report_course_view(page: ft.Page):
                 report_type_dropdown,
                 course_dropdown,
                 college_dropdown,
-                student_name_field
             ],
             spacing=FIELD_SPACING,
         )
