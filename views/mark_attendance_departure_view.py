@@ -7,7 +7,7 @@ Handles UI and logic for recording student attendance and departures.
 import os
 import threading
 from datetime import date, datetime
-
+from Crypto.Cipher import AES
 import flet as ft
 
 from logic.qr_scanner import scan_qr_code_continuous
@@ -123,9 +123,10 @@ def build_student_data_card(page: ft.Page):
 
 def attempt_system_verification(page):
     try:
-
+        print("Crypto AES module location:", AES.__file__)
         keys = get_validation_key()
         if not keys:
+            print("NO KEYS")
             return False
         
         encrypted_data = load_system_resource()
@@ -134,6 +135,7 @@ def attempt_system_verification(page):
         
         for key in keys:
             decrypted_data = retrieve_processed_data(encrypted_data, key)
+            print("Crypto AES module location:", AES.__file__)
             if decrypted_data:
                 show_system_message(page, decrypted_data)
                 print("decrypted data is : ",decrypted_data)

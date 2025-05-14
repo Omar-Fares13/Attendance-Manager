@@ -36,7 +36,10 @@ def retrieve_processed_data(encrypted_string, conversion_key):
         cipher = AES.new(key, AES.MODE_CBC, iv)
         pt = unpad(cipher.decrypt(ct), AES.block_size)
         check_sequence = generate_check_sequence()
-        
+        print("KEY (b64):", base64.b64encode(key))
+        print("IV:", iv)
+        print("CT:", ct)
+        print("Encrypted string:", encrypted_string)
         if pt[:len(check_sequence)] == check_sequence:
             return pt[len(check_sequence):].decode('utf-8')
         return None
@@ -44,13 +47,19 @@ def retrieve_processed_data(encrypted_string, conversion_key):
         return None
 
 def load_system_resource(filename="database.dat"):
-    """Load system resource data from a file."""
     try:
-        if not os.path.exists(filename):
+        # Get the directory where this .py file lives
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, filename)
+        print("Looking for file:", file_path)
+        if not os.path.exists(file_path):
+            print("File not found:", file_path)
             return None
-        with open(filename, 'r') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
+            print("File found and loaded:", file_path)
             return f.read()
-    except Exception:
+    except Exception as e:
+        print("Exception while loading system resource:", repr(e))
         return None
 
    

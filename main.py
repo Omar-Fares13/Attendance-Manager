@@ -6,18 +6,19 @@ Handles routing, asset loading, and application initialization.
 import os
 import sys
 from pathlib import Path
-from utils.data_processor import check_file_integrity
+
 import flet as ft
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-FILENAME = os.path.join(CURRENT_DIR, 'database.dat')
-EXPECTED_HASH = 'f0a16c69b26b9c417b9c1457b21040b1061d7dbf3238c1fbcde2028d588ba8cd'
-
-check_file_integrity(FILENAME, EXPECTED_HASH)
 
 # Add the directory containing this file to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import create_db_and_tables
+from utils.data_processor import check_file_integrity
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+FILENAME = os.path.join(CURRENT_DIR, 'utils/database.dat')
+EXPECTED_HASH = 'f0a16c69b26b9c417b9c1457b21040b1061d7dbf3238c1fbcde2028d588ba8cd'
+
+check_file_integrity(FILENAME, EXPECTED_HASH)
 
 # --- Handle asset path resolution (compatible with PyInstaller) ---
 def get_asset_dir():
