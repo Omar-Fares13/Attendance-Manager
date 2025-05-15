@@ -2,7 +2,9 @@
 import flet as ft
 from logic.students import get_student_by_id, save_note
 import os
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
+from db import images_dir
 # Ensure create_banner is correctly imported
 try:
     from components.banner import create_banner
@@ -27,6 +29,17 @@ NOTE_BG_COLOR = ft.colors.with_opacity(0.9, WHITE_COLOR) # Slightly off-white fo
 def create_add_note_view(page: ft.Page):
     """Creates the 'Add Note' view for adding notes or warnings to a student."""
     
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
     # --- Create a Ref for the TextField ---
     note_field_ref = ft.Ref[ft.TextField]()
     
@@ -118,19 +131,7 @@ def create_add_note_view(page: ft.Page):
     # Check for student profile picture
     profile_image_src = PROFILE_IMAGE_SRC
     if student_qr_code:
-        # Try different possible paths for the image
-        possible_paths = [
-            f"pictures/{student_qr_code}.jpg",
-            f"assets/pictures/{student_qr_code}.jpg",
-            f"assets/images/{student_qr_code}.jpg",
-            f"captured_images/{student_qr_code}.jpg"
-        ]
-        
-        for path in possible_paths:
-            if os.path.isfile(path):
-                profile_image_src = path
-                print(f"Found profile image at: {path}")
-                break
+        profile_image_src = f"{images_dir}/{student_qr_code}.jpg"
     
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED,

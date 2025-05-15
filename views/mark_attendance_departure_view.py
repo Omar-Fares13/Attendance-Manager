@@ -43,9 +43,8 @@ PROFILE_PIC_SIZE = 150
 PLACEHOLDER_IMAGE_SRC = "images/placeholder_canva.png"
 PROFILE_IMAGE_SRC = "images/profile_placeholder.png"
 
-# --- Path Configuration ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-IMAGE_FOLDER_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "captured_images"))
+from db import images_dir
+IMAGE_FOLDER_PATH = images_dir
 
 # --- Attendance Logic ---
 def on_scan_trigger(student: Student):
