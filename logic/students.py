@@ -182,16 +182,33 @@ def update_student(updated_fields: dict) -> Optional[Student]:
         print("saved")
         return student
 
-# Delete
 def delete_student(student_id: int) -> bool:
     with next(get_session()) as session:
-        student = session.get(Student, student_id)
-        if not student:
+        try:
+            # First get the student with all related data
+            student = session.get(Student, student_id)
+            if not student:
+                return False
+                
+            # Delete all attendance records for this student first
+            if student.attendance:
+                for attendance_record in student.attendance:
+                    session.delete(attendance_record)
+            
+            # Delete all notes for this student
+            if student.notes:
+                for note in student.notes:
+                    session.delete(note)
+                    
+            # Now delete the student
+            session.delete(student)
+            session.commit()
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting student: {e}")
+            session.rollback()
             return False
-        session.delete(student)
-        session.commit()
-        return True
-
 
 #Search by seq
 

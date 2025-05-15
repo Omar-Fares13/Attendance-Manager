@@ -5,7 +5,6 @@ from components.banner import create_banner
 from logic.delete_all import delete_all_data
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
-
 # Locate or create .env at project root
 _env_path = find_dotenv()
 if not _env_path:
@@ -31,7 +30,32 @@ def create_login_view(page: ft.Page):
                 page.snack_bar = ft.SnackBar(ft.Text("تم تسجيل الدخول بنجاح"), bgcolor=ft.Colors.GREEN)
                 page.snack_bar.open = True
                 page.update()
-                page.go(target)
+                # For delete student action
+            # Handle delete student action
+                if target == "/delete_student" and hasattr(page, 'student_id'):
+                    # Directly delete the student
+                    from logic.students import delete_student
+                    student_id = page.student_id
+                    success = delete_student(student_id)
+                    
+                    # Go back to search page with appropriate message
+                    page.go("/search_student")
+                    
+                    # Show success/failure message
+                    if success:
+                        page.show_snack_bar(ft.SnackBar(
+                            ft.Text("تم حذف الطالب بنجاح"),
+                            bgcolor=ft.Colors.GREEN
+                        ))
+                    else:
+                        page.show_snack_bar(ft.SnackBar(
+                            ft.Text("فشل في حذف الطالب"),
+                            bgcolor=ft.Colors.RED
+                        ))
+                else:
+                    # Regular navigation for other actions
+                    page.go(target)
+
                 return
         except ValueError:
             pwd_field.error_text = "حدث خطأ داخلي. حاول إعادة تعيين كلمة السر."

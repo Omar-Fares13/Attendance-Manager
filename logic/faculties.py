@@ -47,14 +47,55 @@ def update_faculty(faculty_id: int, updated_fields: dict) -> Optional[Faculty]:
 
 # Delete
 def delete_faculty(faculty_id: int) -> bool:
+    """
+    Delete a faculty and all its associated students.
+    
+    Args:
+        faculty_id: The ID of the faculty to delete
+        
+    Returns:
+        bool: True if deletion was successful, False otherwise
+    """
+    from logic.students import delete_student  # Import here to avoid circular imports
+    
     with next(get_session()) as session:
-        faculty = session.get(Faculty, faculty_id)
-        if not faculty:
+        try:
+            # Get faculty with its students loaded
+            stmt = (
+                select(Faculty)
+                .options(selectinload(Faculty.students))
+                .where(Faculty.id == faculty_id)
+            )
+            faculty = session.exec(stmt).one_or_none()
+            
+            if not faculty:
+                return False
+            
+            # Delete all students associated with this faculty
+            student_count = 0
+            if faculty.students:
+                print(f"Deleting {len(faculty.students)} students from faculty '{faculty.name}'")
+                for student in faculty.students:
+                    # Use the delete_student function to properly handle student relationships
+                    success = delete_student(student.id)
+                    if success:
+                        student_count += 1
+                    else:
+                        print(f"Failed to delete student {student.id} ({student.name})")
+                
+                # Refresh the faculty object to reflect changes
+                session.refresh(faculty)
+            
+            # Now delete the faculty
+            session.delete(faculty)
+            session.commit()
+            print(f"Successfully deleted faculty '{faculty.name}' and {student_count} students")
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting faculty: {e}")
+            session.rollback()
             return False
-        session.delete(faculty)
-        session.commit()
-        return True
-
 
 def get_faculties(name_query: str) -> List[Faculty]:
     """

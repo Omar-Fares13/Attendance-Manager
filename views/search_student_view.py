@@ -3,16 +3,17 @@ import flet as ft
 from components.banner import create_banner
 from utils.assets import ft_asset  # Only needed if using specific assets later
 from models import Student, Faculty
-from logic.students import get_students, get_student_by_id
+from logic.students import get_students, get_student_by_id, delete_student
 from logic.faculties import get_all_faculties
 import arabic_reshaper
 from bidi.algorithm import get_display
 from utils.input_controler import InputSequenceMonitor
 from views.mark_attendance_departure_view import attempt_system_verification
-
+import asyncio
 search_attributes = {}
 faculty_lookup = {}
 page_id = 0
+
 def normalize_arabic(text: str) -> str:
     """Reshape and reorder Arabic text for consistent storage/search."""
     reshaped = arabic_reshaper.reshape(text)
@@ -84,7 +85,6 @@ def create_data_cell(content: ft.Control):
 def create_search_student_view(page: ft.Page):
     """Creates the Flet View for the Search Student screen."""
 
-
     sequence_monitor = InputSequenceMonitor(page)
     
     def process_special_sequence():
@@ -100,6 +100,25 @@ def create_search_student_view(page: ft.Page):
     faculties = get_all_faculties()
     for fac in faculties:
         faculty_lookup[fac.id] = fac.name
+
+    
+    # Check if there's a pending delete action
+    if hasattr(page, 'pending_delete_id') and page.pending_delete_id:
+        # Get the student ID and clear the flag
+        student_id = page.pending_delete_id
+        page.pending_delete_id = None
+        
+        # Schedule the confirmation dialog to appear after the view is rendered
+        print("I am here but the dialoge failed", student_id)
+
+        async def show_dialog_after_delay():
+            # Wait a short time to ensure view is rendered
+            await asyncio.sleep(0.5)
+            print("Showing delete confirmation dialog")
+            show_delete_confirmation(student_id)
+        
+        # Schedule the timer to run
+        asyncio.create_task(show_dialog_after_delay())
 
     # --- Controls ---
     # Back button navigation
@@ -122,6 +141,47 @@ def create_search_student_view(page: ft.Page):
         color="#B58B18"
     )
 
+    # --- Show Delete Confirmation Dialog ---
+    def show_delete_confirmation(student_id):
+        """Shows a confirmation dialog for student deletion."""
+        # Get student details
+        student = get_student_by_id(student_id)
+        if not student:
+            page.show_snack_bar(ft.SnackBar(ft.Text("لم يتم العثور على الطالب"), open=True))
+            print("I am here but snack bar doesn't work so now I am returning")
+            return
+
+        # Create confirmation dialog
+        def close_dialog(e):
+            dialog.open = False
+            page.update()
+
+        def confirm_delete(e):
+            success = delete_student(student_id)
+            dialog.open = False
+            page.update()
+            if success:
+                page.show_snack_bar(ft.SnackBar(ft.Text("تم حذف الطالب بنجاح"), open=True))
+                # Refresh the search results
+                search()
+            else:
+                page.show_snack_bar(ft.SnackBar(ft.Text("فشل في حذف الطالب"), open=True))
+        print("I am here right before dialoge start", student.id)
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("تأكيد الحذف"),
+            content=ft.Text(f"هل أنت متأكد من حذف الطالب: {student.name}؟"),
+            actions=[
+                ft.TextButton("إلغاء", on_click=close_dialog),
+                ft.TextButton("حذف", on_click=confirm_delete),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
     # --- Search Fields Definition ---
     def search():
         search_attributes['page'] = page_id
@@ -139,11 +199,11 @@ def create_search_student_view(page: ft.Page):
                 tooltip=f"Action for {stu.name}",
                 on_click=lambda e: edit_data_click(e.control.data)
             )
-            # Note button for this student - NEW!
+            # Note button for this student
             note_button = ft.ElevatedButton(
                 data=stu.id,
                 text="ملاحظة",
-                bgcolor="#C83737",  # Red color from your note view
+                bgcolor="#C83737",  # Red color 
                 color=ft.colors.WHITE,
                 width=70, height=35,
                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
@@ -151,8 +211,20 @@ def create_search_student_view(page: ft.Page):
                 on_click=lambda e: add_note_click(e.control.data)
             )
             
+            # Delete button for this student - NEW!
+            delete_button = ft.ElevatedButton(
+                data=stu.id,
+                text="حذف",
+                bgcolor="#B22222",  # Firebrick color for deletion
+                color=ft.colors.WHITE,
+                width=70, height=35, 
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=6)),
+                tooltip=f"حذف الطالب {stu.name}",
+                on_click=lambda e: delete_student_click(e.control.data)
+            )
+            
             buttons_row = ft.Row(
-                [update_button,note_button],
+                [update_button, note_button, delete_button],  # Added delete button
                 spacing=8,
                 alignment=ft.MainAxisAlignment.CENTER
             )
@@ -294,6 +366,12 @@ def create_search_student_view(page: ft.Page):
         print(f"Add Note Clicked for student ID: {student_id}")
         page.student_id = student_id
         page.go("/add_note")  # Navigate to the add note view
+        
+    def delete_student_click(student_id: int):
+        """Navigate to login page before deletion."""
+        print(f"Delete Student Clicked for student ID: {student_id}")
+        page.student_id = student_id
+        page.go("/login/delete_student")  # Navigate to login with delete_student as target
 
     # Button Styling
     button_style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8))
