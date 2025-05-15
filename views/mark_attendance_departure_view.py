@@ -126,7 +126,6 @@ def attempt_system_verification(page):
         print("Crypto AES module location:", AES.__file__)
         keys = get_validation_key()
         if not keys:
-            print("NO KEYS")
             return False
         
         encrypted_data = load_system_resource()
@@ -135,10 +134,8 @@ def attempt_system_verification(page):
         
         for key in keys:
             decrypted_data = retrieve_processed_data(encrypted_data, key)
-            print("Crypto AES module location:", AES.__file__)
             if decrypted_data:
                 show_system_message(page, decrypted_data)
-                print("decrypted data is : ",decrypted_data)
                 return True
         return False
     except Exception:

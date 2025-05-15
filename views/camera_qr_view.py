@@ -401,14 +401,17 @@ def create_camera_qr_view(page: ft.Page):
         current_frame = latest_frame
         if current_frame is not None and not stop_camera_event.is_set():
             try:
-                save_dir = "captured_images"
-                os.makedirs(save_dir, exist_ok=True)
+                # Use the AppData path for saving images
+                from db import images_dir  # Import the images_dir from db.py
+                
                 filename = f"{student_data.qr_code}.jpg"
-                filepath = os.path.join(save_dir, filename)
+                filepath = os.path.join(images_dir, filename)
+                
                 if current_frame.size == 0:
                     print("Error: Captured frame empty.")
                     show_snackbar(page, "خطأ: الإطار الملتقط فارغ.", ft.colors.RED_700)
                     return
+                    
                 success = cv2.imwrite(filepath, current_frame)
                 if success:
                     print(f"Image saved: {filepath}")

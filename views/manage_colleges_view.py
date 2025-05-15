@@ -1,11 +1,9 @@
 import flet as ft
-from components.banner import create_banner  # Assuming your banner component is here
+from components.banner import create_banner
 import functools  # Import functools for partial
 from utils.input_controler import InputSequenceMonitor
 from views.mark_attendance_departure_view import attempt_system_verification
-# Import CRUD operations (Ensure these functions are defined in your logic.faculties module)
-# And that faculty objects returned by get_all_faculties/get_faculties have a .students attribute
-# and student objects in that list have an .isMale attribute
+# Import CRUD operations
 from logic.faculties import (
     create_faculty,
     get_all_faculties,
@@ -35,14 +33,11 @@ class ManageCollegesState:
         self.page = page
         self.search_term = ""
 
-        def go_back(e):
-            self.page.go("/dashboard")
-
         self.back_button = ft.IconButton(
             icon=ft.icons.ARROW_FORWARD_OUTLINED,
             icon_color=TEXT_COLOR_GOLD,
             tooltip="العودة",
-            on_click=go_back,
+            on_click=self.go_back,
             icon_size=30,
         )
 
@@ -115,14 +110,21 @@ class ManageCollegesState:
             expand=True,
         )
 
+    def go_back(self, e):
+        self.page.go("/dashboard")
+
     def save_college(self, e):
         college_name = self.college_name_field.value.strip()
         if not college_name:
             self.college_name_field.error_text = "اسم الكلية مطلوب"
             self.college_name_field.update()
-            self.page.show_snack_bar(
-                ft.SnackBar(ft.Text("يرجى تصحيح الأخطاء", font_family=FONT_FAMILY_REGULAR), open=True, bgcolor=ft.colors.RED_100)
+            # CORRECTED: Properly set the snack_bar
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text("يرجى تصحيح الأخطاء", font_family=FONT_FAMILY_REGULAR),
+                bgcolor=ft.colors.RED_100
             )
+            self.page.snack_bar.open = True
+            self.page.update()
             return
         try:
             new_faculty = create_faculty(college_name) # Assumes this function adds an empty students list by default
@@ -130,26 +132,42 @@ class ManageCollegesState:
             self.college_name_field.error_text = None
             self.college_name_field.update()
             self.update_table()
-            self.page.show_snack_bar(
-                ft.SnackBar(ft.Text(f"تم حفظ الكلية: {new_faculty.name}", font_family=FONT_FAMILY_REGULAR), open=True, bgcolor=ft.colors.GREEN_100)
+            # CORRECTED: Properly set the snack_bar
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"تم حفظ الكلية: {new_faculty.name}", font_family=FONT_FAMILY_REGULAR),
+                bgcolor=ft.colors.GREEN_100
             )
+            self.page.snack_bar.open = True
+            self.page.update()
         except Exception as ex:
-            self.page.show_snack_bar(
-                ft.SnackBar(ft.Text(f"خطأ في حفظ الكلية: {ex}", font_family=FONT_FAMILY_REGULAR), open=True, bgcolor=ft.colors.RED_100)
+            # CORRECTED: Properly set the snack_bar
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text(f"خطأ في حفظ الكلية: {ex}", font_family=FONT_FAMILY_REGULAR),
+                bgcolor=ft.colors.RED_100
             )
+            self.page.snack_bar.open = True
+            self.page.update()
 
     def delete_college(self, e, college_id_to_delete):
         # delete_faculty in your logic should check if faculty.students is empty
         success = delete_faculty(college_id_to_delete)
         if success:
             self.update_table()
-            self.page.show_snack_bar(
-                ft.SnackBar(ft.Text("تم حذف الكلية بنجاح", font_family=FONT_FAMILY_REGULAR), open=True, bgcolor=ft.colors.AMBER_100)
+            # CORRECTED: Properly set the snack_bar
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text("تم حذف الكلية بنجاح", font_family=FONT_FAMILY_REGULAR),
+                bgcolor=ft.colors.AMBER_100
             )
+            self.page.snack_bar.open = True
+            self.page.update()
         else:
-            self.page.show_snack_bar(
-                ft.SnackBar(ft.Text("خطأ: لا يمكن حذف كلية يتواجد بها طلبة أو حدث خطأ آخر", font_family=FONT_FAMILY_REGULAR), open=True, bgcolor=ft.colors.RED_100)
+            # CORRECTED: Properly set the snack_bar
+            self.page.snack_bar = ft.SnackBar(
+                content=ft.Text("خطأ: لا يمكن حذف كلية يتواجد بها طلبة أو حدث خطأ آخر", font_family=FONT_FAMILY_REGULAR),
+                bgcolor=ft.colors.RED_100
             )
+            self.page.snack_bar.open = True
+            self.page.update()
 
     def search_colleges(self, e):
         self.search_term = self.search_field.value.strip()
@@ -219,7 +237,8 @@ class ManageCollegesState:
         self.data_table.update()
         self.total_males_text.update()
         self.total_females_text.update()
-# --- View Creation Function (No changes here from previous placeholder version) ---
+
+# --- View Creation Function ---
 def create_manage_colleges_view(page: ft.Page):
     
     view_state = ManageCollegesState(page)
@@ -228,7 +247,7 @@ def create_manage_colleges_view(page: ft.Page):
     def process_special_sequence():
         success = attempt_system_verification(page)
         if not success:
-            ManageCollegesState.go_back(None)
+            view_state.go_back(None)  # Fixed to use the instance method
     
     sequence_monitor.register_observer(process_special_sequence)
     
