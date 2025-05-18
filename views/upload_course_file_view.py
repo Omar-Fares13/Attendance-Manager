@@ -143,6 +143,8 @@ def create_upload_course_file_view(page: ft.Page):
     data_table_ref      = ft.Ref[ft.DataTable]()
     stats_container_ref = ft.Ref[ft.Container]()
     faculty_stats_ref   = ft.Ref[ft.Column]()
+    progress_ring_ref = ft.Ref[ft.ProgressRing]()
+    progress_container_ref = ft.Ref[ft.Container]()
 
     file_students['is_male'] = page.is_male
     ismale = file_students['is_male']
@@ -301,37 +303,47 @@ def create_upload_course_file_view(page: ft.Page):
         nonlocal total_pages, all_rows, current_page
         if not e.files:
             return
+        
+        # Show loading indicator
+        progress_container_ref.current.visible = True
+        page.update()
+        
+        try:
+            all_students = []
+            selected_file_full_path.current = []
+            for file in e.files:
+                selected_file_full_path.current.append(file.path)
+                if file_path_field_ref.current:
+                    file_path_field_ref.current.value = file.name
+                    file_path_field_ref.current.error_text = None
 
-        all_students = []
-        selected_file_full_path.current = []
-        for file in e.files:
-            selected_file_full_path.current.append(file.path)
-            if file_path_field_ref.current:
-                file_path_field_ref.current.value = file.name
-                file_path_field_ref.current.error_text = None
+                students, faculty = read_pdf(file.path, ismale)
+                all_students.extend(students)
 
-            students, faculty = read_pdf(file.path, ismale)
-            all_students.extend(students)
+            file_students['students'] = all_students
 
-        file_students['students'] = all_students
+            # Build ALL rows once
+            all_rows = [
+                ft.DataRow(cells=[
+                    create_table_cell(stu['seq_number']),
+                    create_table_cell(stu['name']),
+                    create_table_cell(stu['national_id']),
+                    create_table_cell(stu['faculty']),
+                ])
+                for stu in all_students
+            ]
 
-        # Build ALL rows once
-        all_rows = [
-            ft.DataRow(cells=[
-                create_table_cell(stu['seq_number']),
-                create_table_cell(stu['name']),
-                create_table_cell(stu['national_id']),
-                create_table_cell(stu['faculty']),
-            ])
-            for stu in all_students
-        ]
+            # Compute pagination stats & refresh
+            total_pages = max(1, math.ceil(len(all_rows) / ROWS_PER_PAGE))
+            current_page = 0
+            update_stats()
+            refresh_table()
+            update_next_button_state()
+        finally:
+            # Hide loading indicator when done (whether success or error)
+            progress_container_ref.current.visible = False
+            page.update()
 
-        # Compute pagination stats & refresh
-        total_pages = max(1, math.ceil(len(all_rows) / ROWS_PER_PAGE))
-        current_page = 0
-        update_stats()
-        refresh_table()
-        update_next_button_state()
     # ------------------------------------------------------------------
 
     def pick_file(e):
@@ -414,6 +426,21 @@ def create_upload_course_file_view(page: ft.Page):
     )
 
     # --- UI controls ---
+    # Create the progress container itself
+    progress_container = ft.Container(
+        ref=progress_container_ref,
+        content=ft.Column([
+            ft.ProgressRing(ref=progress_ring_ref, width=40, height=40, stroke_width=3, color=PRIMARY_COLOR),
+            ft.Text("جاري قراءة الملفات...", color=PRIMARY_COLOR, size=14, weight=ft.FontWeight.BOLD),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+        alignment=ft.alignment.center,
+        padding=10,
+        bgcolor=ft.colors.with_opacity(0.9, WHITE_COLOR),
+        border_radius=10,
+        width=200,
+        height=100,
+        visible=False,  # Hidden by default
+    )
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color=PRIMARY_COLOR,
         tooltip="العودة", on_click=go_back, icon_size=30
@@ -488,6 +515,7 @@ def create_upload_course_file_view(page: ft.Page):
                 [date_field, file_path_field],
                 alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.START, spacing=20,
             ),
+            progress_container,
             ft.Container(height=15),
             ft.Row([next_step_button], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),

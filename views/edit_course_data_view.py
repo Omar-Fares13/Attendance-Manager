@@ -24,7 +24,32 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 attribs = {}
 raw_names = []
 content_ref = ft.Ref[ft.Column]()
+loading_dialog_ref = ft.Ref[ft.AlertDialog]()
 # --- Helper to create styled TextField for cells ---
+
+def create_loading_dialog():
+    return ft.AlertDialog(
+        ref=loading_dialog_ref,
+        modal=True,
+        title=ft.Text("جاري تحميل البيانات", text_align=ft.TextAlign.CENTER),
+        content=ft.Column(
+            [
+                ft.ProgressRing(width=50, height=50, stroke_width=3, color=PRIMARY_COLOR),
+                ft.Container(height=10),
+                ft.Text("يرجى الانتظار بينما يتم تحميل بيانات الدورة...", 
+                       text_align=ft.TextAlign.CENTER, 
+                       color=TEXT_COLOR_DARK)
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=10,
+            width=300,
+            height=120
+        ),
+        actions_alignment=ft.MainAxisAlignment.CENTER,
+    )
+
+
 def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells and assigns a Ref."""
     return ft.TextField(
@@ -183,33 +208,48 @@ def create_edit_course_data_view(page: ft.Page):
         page.go("/register_course_options")
 
     def proceed_to_confirmation(e):
-        updated_data = []
+        # Show loading dialog
+        page.dialog = loading_dialog_ref.current
+        loading_dialog_ref.current.open = True
+        page.update()
+        
+        # Define the processing function
+        def do_processing():
+            updated_data = []
 
-        for r_idx, row_refs in enumerate(text_field_refs):
-            row_values = []
-            for rf in row_refs:
-                if rf.current:
-                    raw_val = rf.current.value          # could be str or int or None
-                    cleaned = str(raw_val).strip()      # cast to str, then strip
-                else:
-                    cleaned = ""
-                row_values.append(cleaned)
+            for r_idx, row_refs in enumerate(text_field_refs):
+                row_values = []
+                for rf in row_refs:
+                    if rf.current:
+                        raw_val = rf.current.value          # could be str or int or None
+                        cleaned = str(raw_val).strip()      # cast to str, then strip
+                    else:
+                        cleaned = ""
+                    row_values.append(cleaned)
 
-            std = dict(
-                name        = row_values[0],
-                raw_name    = raw_names[r_idx],
-                seq_number  = row_values[1],
-                national_id = row_values[2],
-                faculty     = row_values[3],
-                is_male     = attribs['is_male'],
-            )
-            updated_data.append(std)
+                std = dict(
+                    name        = row_values[0],
+                    raw_name    = raw_names[r_idx],
+                    seq_number  = row_values[1],
+                    national_id = row_values[2],
+                    faculty     = row_values[3],
+                    is_male     = attribs['is_male'],
+                )
+                updated_data.append(std)
 
-        create_students_from_file(updated_data,
-                                attribs['date'],
-                                attribs['is_male'])
-        page.routes = []
-        page.go("/dashboard")
+            # Create students - this is the time-consuming operation
+            create_students_from_file(updated_data,
+                                    attribs['date'],
+                                    attribs['is_male'])
+            
+            # Navigation will handle closing the dialog
+            page.routes = []
+            page.go("/dashboard")
+        
+        # Use a timer to allow the dialog to render before starting processing
+        import threading
+        threading.Timer(0.1, do_processing).start()
+        
 
     # ------------------------------------------------------------
     # 6) UI CONTROLS (unchanged except we insert nav_bar)
@@ -256,7 +296,8 @@ def create_edit_course_data_view(page: ft.Page):
 
     # --- Get Banner ---
     banner_control = create_banner()
-
+    loading_dialog = create_loading_dialog()
+    page.overlay.append(loading_dialog)
     # ------------------------------------------------------------
     # 7) PAGE LAYOUT
     # ------------------------------------------------------------
