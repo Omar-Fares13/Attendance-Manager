@@ -8,10 +8,19 @@ from bidi.algorithm import get_display
 
 
 def remove_new_line(name: str) -> str:
-    """Flatten multi-line cell text."""
-    # Simply remove newlines; we will handle reshaping/reordering later
+    """Flatten multi-line cell text while preserving the correct reading order."""
     print(name)
-    ret = " ".join(part for part in name.splitlines() if part)
+    
+    # In Arabic PDFs, text is often read right-to-left, but pdfplumber
+    # might extract lines in bottom-to-top order when in the same cell
+    lines = name.splitlines()
+    non_empty_lines = [line for line in lines if line.strip()]
+    
+    # Reverse the lines to get the correct order (first line first)
+    # This assumes the PDF has RTL text with lines read bottom-to-top
+    non_empty_lines.reverse()
+    
+    ret = " ".join(non_empty_lines)
     print('=' * 80)
     print(ret)
     return ret
