@@ -4,7 +4,7 @@ import flet as ft
 import math
 from logic.students import create_students_from_file
 from components.banner import create_banner
-from logic.file_write import get_student_data, create_excel
+from logic.file_write import get_student_data, create_excel, setup_file_picker
 
 # --- Define Colors & Fonts ---
 BG_COLOR = "#E3DCCC"
@@ -164,7 +164,7 @@ def create_report_view(page: ft.Page):
         sorted_data = failing + passing
         summary = ["-" for _ in headers]
         summary[-2] = f"إجمالي الراسب: {len(failing)} | إجمالي الناجح: {len(passing)}"
-        create_excel(headers, [summary]+sorted_data, page.course_name)
+        setup_file_picker(page, page.course_name, headers, [summary] + sorted_data)
 
     back_button = ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED,
                                 icon_color=PRIMARY_COLOR,

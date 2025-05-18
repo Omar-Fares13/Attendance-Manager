@@ -53,25 +53,32 @@ def get_notes(student) -> str:
 
 def format_students(students) -> List[List[Any]]:
     """Format student objects into rows of data for reports."""
-    formatted_students = [
-        [std.seq_number,
-         str(std.name),  # Ensure name is a string
-         std.national_id,
-         std.faculty.name,
-         get_warnings(std),
-         len(std.attendance),
-         12 - len(std.attendance),  # Calculate absences based on 12 total days
-         "ناجح" if len(std.attendance) >= 10 else "راسب",
-         get_notes(std),
+    formatted_students = []
+
+    for std in students:
+        valid_attendance = [
+            att for att in std.attendance
+            if att.arrival_time is not None and att.leave_time is not None
         ]
-        for std in students
-    ]
-    
-    # Calculate actual absences
-    for i in range(len(formatted_students)):
-        formatted_students[i][6] = 12 - formatted_students[i][5]
-        
+        attended = len(valid_attendance)
+        absent = 12 - attended
+        status = "ناجح" if attended >= 10 else "راسب"
+
+        row = [
+            std.seq_number,
+            str(std.name),
+            std.national_id,
+            std.faculty.name,
+            get_warnings(std),
+            attended,
+            absent,
+            status,
+            get_notes(std),
+        ]
+        formatted_students.append(row)
+
     return formatted_students
+
 
 
 def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str], 
@@ -212,8 +219,9 @@ def create_excel(headers: List[str], rows: List[List[Any]], file_path: str) -> N
         rows: List of data rows
         file_path: Full path where Excel file should be saved
     """
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    dir_path = os.path.dirname(file_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
 
     # Build DataFrame
     df = pd.DataFrame(rows, columns=headers)
