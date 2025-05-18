@@ -5,6 +5,7 @@ from components.banner import create_banner
 from logic.delete_all import delete_all_data
 from dotenv import load_dotenv, find_dotenv
 from pathlib import Path
+
 # Locate or create .env at project root
 _env_path = find_dotenv()
 if not _env_path:
@@ -18,12 +19,13 @@ load_dotenv(dotenv_path=str(_env_path))
 def create_login_view(page: ft.Page):
     """Creates the Flet View for the Login screen with secure password handling and reset mechanism."""
     target = "/" + page.route.split("/")[-1]
+    from_splash = target == "/login"
+    raw_hash = os.getenv("APP_PASSWORD_HASH", "").strip().strip('\"').strip("'")
+    show_reset = bool(raw_hash)
 
     # --- Login logic ---
     def do_login(e):
         load_dotenv(dotenv_path=str(_env_path), override=True)
-
-        raw_hash = os.getenv("APP_PASSWORD_HASH", "").strip().strip('\"').strip("'")
         pwd = pwd_field.value.encode('utf-8')
         try:
             if raw_hash and bcrypt.checkpw(pwd, raw_hash.encode('utf-8')):
@@ -31,16 +33,16 @@ def create_login_view(page: ft.Page):
                 page.snack_bar.open = True
                 page.update()
                 # For delete student action
-            # Handle delete student action
+                # Handle delete student action
                 if target == "/delete_student" and hasattr(page, 'student_id'):
                     # Directly delete the student
                     from logic.students import delete_student
                     student_id = page.student_id
                     success = delete_student(student_id)
-                    
+
                     # Go back to search page with appropriate message
                     page.go("/search_student")
-                    
+
                     # Show success/failure message
                     if success:
                         page.show_snack_bar(ft.SnackBar(
@@ -52,6 +54,9 @@ def create_login_view(page: ft.Page):
                             ft.Text("فشل في حذف الطالب"),
                             bgcolor=ft.Colors.RED
                         ))
+                elif from_splash:
+                    page.go("/dashboard")
+
                 else:
                     # Regular navigation for other actions
                     page.go(target)
@@ -112,14 +117,24 @@ def create_login_view(page: ft.Page):
         text="نسيت كلمة السر؟",
         on_click=open_reset_dialog,
         style=ft.ButtonStyle()
-    )
+    ) if show_reset else None
 
-    back_btn = ft.TextButton(
-        text="رجوع",
-        icon=ft.icons.ARROW_BACK,
-        on_click=lambda e: page.go("/dashboard"),
-        style=ft.ButtonStyle()
-    )
+    register_btn = None
+    if from_splash:
+        register_btn = ft.TextButton(
+            text="ليس لدي كلمة مرور، سجل أولاً",
+            on_click=lambda e: page.go("/setup"),
+            style=ft.ButtonStyle()
+        )
+
+    back_btn = None
+    if not from_splash:
+        back_btn = ft.TextButton(
+            text="رجوع",
+            icon=ft.icons.ARROW_BACK,
+            on_click=lambda e: page.go("/dashboard"),
+            style=ft.ButtonStyle()
+        )
 
     # Confirmation dialog
     dialog = ft.AlertDialog(
@@ -147,8 +162,9 @@ def create_login_view(page: ft.Page):
                 pwd_field,
                 ft.Container(height=20),
                 login_btn,
-                reset_btn,
-                back_btn
+                *([reset_btn] if reset_btn else []),
+                *([register_btn] if register_btn else []),
+                *([back_btn] if back_btn else [])
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
@@ -160,7 +176,7 @@ def create_login_view(page: ft.Page):
     banner_control = create_banner(page.width)
 
     # Combine back button, banner, and login card
-    header = ft.Row([ ft.Container()], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+    header = ft.Row([ft.Container()], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
     return ft.View(
         route="/login",
