@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# PyCharm
+.idea/
+
+
+# Env
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# others
+backend/test.py
