@@ -59,7 +59,7 @@ def create_setup_view(page: ft.Page):
         )
         page.snack_bar.open = True
         page.update()
-        page.go("/")
+        page.go("/login")
 
     # --- UI Controls ---
     pwd1 = ft.TextField(
