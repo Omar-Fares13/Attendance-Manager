@@ -293,6 +293,14 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
 def create_students_from_file(students, course_date, is_male):
     try:
         with next(get_session()) as session:
+            # Convert is_male to boolean if it's a string
+            if isinstance(is_male, str):
+                is_male = is_male == '1'
+            elif isinstance(is_male, bool):
+                is_male = is_male
+            else:
+                is_male = bool(is_male)
+
             # Get or create course in a single transaction
             stmt = (
                 select(Course.id)
@@ -348,7 +356,7 @@ def create_students_from_file(students, course_date, is_male):
                     national_id=std.get('national_id', ''),
                     faculty_id=faculty_id,
                     course_id=course_id,
-                    is_male=is_male,
+                    is_male=is_male,  # Use the properly converted boolean value
                     qr_code=str(uuid.uuid4())
                 )
                 new_students.append(new_student)

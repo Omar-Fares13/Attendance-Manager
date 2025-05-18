@@ -7,7 +7,7 @@ def create_course(
     *,
     start_date: date | None = None,
     end_date:   date | None = None,
-    is_male_type: bool = True,
+    is_male_type: bool | str = True,
 ) -> Course:
     # 1) Compute defaults only when needed:
     if start_date is None:
@@ -15,7 +15,14 @@ def create_course(
     if end_date is None:
         end_date = start_date + timedelta(days=12)
 
-    is_male_type = is_male_type == '1'
+    # Properly convert is_male_type to boolean
+    if isinstance(is_male_type, str):
+        is_male_type = is_male_type == '1'
+    elif isinstance(is_male_type, bool):
+        is_male_type = is_male_type
+    else:
+        is_male_type = bool(is_male_type)
+
     # 2) Now create and persist:
     with next(get_session()) as session:
         course = Course(

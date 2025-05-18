@@ -155,45 +155,46 @@ def create_data_columns(headers):
     ]
 
 
-def create_attendance_cell(arrival, departure):
-    """Create a cell with stacked arrival and departure times"""
-    # Determine background color based on attendance
-    has_attended = bool(arrival and departure)
-    bg_color = ATTENDANCE_PRESENT_BG if has_attended else ATTENDANCE_ABSENT_BG
+def create_attendance_cell(arrival, departure, attended_days):
+    """Create a cell with stacked arrival and departure times.
+    Only shows as present (green) when both arrival and departure times exist."""
+    # Determine background color based on complete attendance
+    has_complete_attendance = bool(arrival and departure and arrival.strip() and departure.strip())
+    bg_color = ATTENDANCE_PRESENT_BG if has_complete_attendance else ATTENDANCE_ABSENT_BG
     
     return ft.Container(
         content=ft.Column(
             [
                 ft.Text(
-                    value=arrival or "",
+                    value=attended_days or "",
                     size=14,
                     text_align=ft.TextAlign.CENTER,
-                    weight=ft.FontWeight.BOLD if arrival else ft.FontWeight.NORMAL
+                    weight=ft.FontWeight.BOLD if arrival else ft.FontWeight.NORMAL,
+                    color=ft.colors.BLACK if has_complete_attendance else ft.colors.GREY_700
                 ),
                 ft.Text(
                     value=departure or "",
                     size=14,
                     text_align=ft.TextAlign.CENTER,
-                    weight=ft.FontWeight.BOLD if departure else ft.FontWeight.NORMAL
-                )
+                    weight=ft.FontWeight.BOLD if departure else ft.FontWeight.NORMAL,
+                    color=ft.colors.BLACK if has_complete_attendance else ft.colors.GREY_700
+                ),
             ],
-            spacing=4,
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            spacing=2,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         bgcolor=bg_color,
-        border_radius=ft.border_radius.all(4),
-        padding=ft.padding.symmetric(vertical=8),
-        alignment=ft.alignment.center,
-        height=60,
+        border_radius=8,
+        padding=10,
     )
 
 
 def create_data_rows(dates, processed_data):
     """Create DataRow objects for the data table"""
     rows = []
-    
     for i, student in enumerate(processed_data):
+        attended_days = 0
+        
         cells = [
             # Sequence number
             ft.DataCell(
@@ -210,17 +211,18 @@ def create_data_rows(dates, processed_data):
         ]
         
         # Add attendance cells for each date
-        for d in dates:
-            attendance_data = student['attendance'].get(d, {})
-            arrival = attendance_data.get('arrival', '')
-            departure = attendance_data.get('departure', '')
-            
-            cells.append(
-                ft.DataCell(
-                    create_attendance_cell(arrival, departure)
-                )
+    for d in dates:
+        attendance_data = student['attendance'].get(d, {})
+        arrival = attendance_data.get('arrival', '')
+        departure = attendance_data.get('departure', '')
+        print(f"arrival: {arrival}, departure: {departure}")
+        if arrival is not None and arrival.strip() != '' and departure is not None and departure.strip() != '':
+            attended_days += 1
+        cells.append(
+            ft.DataCell(
+                create_attendance_cell(arrival, departure, attended_days)
             )
-        
+        )
         # Alternate row background colors
         bg_color = TABLE_ALT_ROW_BG if i % 2 == 1 else TABLE_CELL_BG
         

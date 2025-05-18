@@ -78,13 +78,7 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
                 processed_data: List[Dict[str, Any]], headers: List[str]) -> None:
     """
     Extract attendance data to Excel file with user-selected save location.
-    
-    Args:
-        e: Event from button click
-        page: Flet page object
-        report_dates: List of dates in the report
-        processed_data: List of dictionaries containing student data
-        headers: List of column headers
+    Only counts attendance when both arrival and departure times are present.
     """
     # Initialize data rows for Excel
     excel_rows = []
@@ -92,16 +86,40 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
     # Track attendance statistics
     attendance_threshold = 8  # Students need to attend at least 8 days to pass
     
+    print("\n=== Student Data Debug Information ===")
+    print(f"Total Students: {len(processed_data)}")
+    print(f"Report Dates: {report_dates}")
+    print("\nProcessing students...")
+    
     # Process each student's data
     for student in processed_data:
-        # Count attended days (at least arrival or departure time recorded)
-        attended_days = sum(1 for date in report_dates if 
-                          date in student['attendance'] and 
-                          (student['attendance'][date].get('arrival') or 
-                           student['attendance'][date].get('departure')))
+        print(f"\nStudent Details:")
+        print(f"  - Sequence: {student['seq']}")
+        print(f"  - Name: {student['name']}")
+        print(f"  - Faculty: {student['faculty']}")
+        print("  - Attendance Records:")
+        
+        # Count attended days (must have both arrival and departure time recorded)
+        attended_days = 0
+        for date in report_dates:
+            if date in student['attendance']:
+                attendance = student['attendance'][date]
+                arrival = attendance.get('arrival', '')
+                departure = attendance.get('departure', '')
+                
+                print(f"    {date}: Arrival={arrival}, Departure={departure}")
+                
+                # Only count as attended if BOTH arrival AND departure are present
+                if arrival and departure and arrival.strip() and departure.strip():
+                    attended_days += 1
+                else:
+                    print(f"    Not counted - Missing {'arrival' if not arrival else 'departure' if not departure else 'both'}")
+        
+        print(f"  - Total Attended Days: {attended_days}/{len(report_dates)}")
         
         # Determine pass/fail status based on attendance threshold
         status = "ناجح" if attended_days >= attendance_threshold else "راسب"
+        print(f"  - Status: {status}")
         
         # Create row for this student with all columns
         row = [
@@ -116,7 +134,11 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
                 attendance = student['attendance'][date]
                 arrival = attendance.get('arrival', '')
                 departure = attendance.get('departure', '')
-                row.append(f"{arrival}/{departure}" if arrival or departure else "غائب")
+                # Only show as present if both times are recorded
+                if arrival and departure and arrival.strip() and departure.strip():
+                    row.append(f"{arrival}/{departure}")
+                else:
+                    row.append("غائب")  # Missing either arrival or departure counts as absent
             else:
                 row.append("غائب")  # Absent
         
@@ -129,6 +151,11 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
     # Separate passing and failing students
     failing_students = [row for row in excel_rows if row[-2] == "راسب"]
     passing_students = [row for row in excel_rows if row[-2] == "ناجح"]
+    
+    print("\n=== Summary ===")
+    print(f"Total Passing: {len(passing_students)}")
+    print(f"Total Failing: {len(failing_students)}")
+    print("=====================================\n")
     
     # Sort: failing students first, then passing students
     sorted_data = failing_students + passing_students
@@ -147,7 +174,18 @@ def extract_xlsx(e: ft.ControlEvent, page: ft.Page, report_dates: List[str],
         sorted_data.append(summary_row)
     
     # Get course name from page or use default
-    course_name = getattr(page, 'course_name', 'attendance_report') + "_بالايام"
+    base_name = getattr(page, 'course_name', 'attendance_report')
+    
+    # Check if we have any students to determine gender
+    if processed_data:
+        # Get the first student's data to determine gender
+        first_student = processed_data[0]
+        is_male = first_student.get('is_male', True)  # Default to male if not specified
+        gender_suffix = "_ذكور" if is_male else "_اناث"
+    else:
+        gender_suffix = ""  # No gender suffix if no students
+        
+    course_name = f"{base_name}{gender_suffix}_بالايام"
     
     # Setup file picker for saving
     setup_file_picker(page, course_name, extended_headers, sorted_data)

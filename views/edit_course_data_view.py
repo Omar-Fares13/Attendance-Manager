@@ -219,11 +219,11 @@ def create_edit_course_data_view(page: ft.Page):
                     "seq_number": values[1],
                     "national_id": values[2],
                     "faculty": values[3],
-                    "is_male": True if attribs['is_male'] == '1' or attribs['is_male'] == True else False
+                    "is_male": attribs['is_male']  # Pass the original value without conversion
                 })
 
             # Batch create all students at once
-            success = create_students_from_file(updated_data, attribs['date'], attribs['is_male'] == '1' or attribs['is_male'] == True)
+            success = create_students_from_file(updated_data, attribs['date'], attribs['is_male'])
             
             if success:
                 # Navigate back to dashboard only on success
