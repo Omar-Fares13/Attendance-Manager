@@ -102,23 +102,6 @@ def create_search_student_view(page: ft.Page):
         faculty_lookup[fac.id] = fac.name
 
     
-    # Check if there's a pending delete action
-    if hasattr(page, 'pending_delete_id') and page.pending_delete_id:
-        # Get the student ID and clear the flag
-        student_id = page.pending_delete_id
-        page.pending_delete_id = None
-        
-        # Schedule the confirmation dialog to appear after the view is rendered
-        print("I am here but the dialoge failed", student_id)
-
-        async def show_dialog_after_delay():
-            # Wait a short time to ensure view is rendered
-            await asyncio.sleep(0.5)
-            print("Showing delete confirmation dialog")
-            show_delete_confirmation(student_id)
-        
-        # Schedule the timer to run
-        asyncio.create_task(show_dialog_after_delay())
 
     # --- Controls ---
     # Back button navigation
@@ -141,46 +124,7 @@ def create_search_student_view(page: ft.Page):
         color="#B58B18"
     )
 
-    # --- Show Delete Confirmation Dialog ---
-    def show_delete_confirmation(student_id):
-        """Shows a confirmation dialog for student deletion."""
-        # Get student details
-        student = get_student_by_id(student_id)
-        if not student:
-            page.show_snack_bar(ft.SnackBar(ft.Text("لم يتم العثور على الطالب"), open=True))
-            print("I am here but snack bar doesn't work so now I am returning")
-            return
-
-        # Create confirmation dialog
-        def close_dialog(e):
-            dialog.open = False
-            page.update()
-
-        def confirm_delete(e):
-            success = delete_student(student_id)
-            dialog.open = False
-            page.update()
-            if success:
-                page.show_snack_bar(ft.SnackBar(ft.Text("تم حذف الطالب بنجاح"), open=True))
-                # Refresh the search results
-                search()
-            else:
-                page.show_snack_bar(ft.SnackBar(ft.Text("فشل في حذف الطالب"), open=True))
-        print("I am here right before dialoge start", student.id)
-        dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text("تأكيد الحذف"),
-            content=ft.Text(f"هل أنت متأكد من حذف الطالب: {student.name}؟"),
-            actions=[
-                ft.TextButton("إلغاء", on_click=close_dialog),
-                ft.TextButton("حذف", on_click=confirm_delete),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
+    
 
     # --- Search Fields Definition ---
     def search():

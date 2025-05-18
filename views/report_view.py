@@ -5,7 +5,8 @@ import math
 from logic.students import create_students_from_file
 from components.banner import create_banner
 from logic.file_write import get_student_data, create_excel
-
+from utils.input_controler import InputSequenceMonitor
+from views.mark_attendance_departure_view import attempt_system_verification
 # --- Define Colors & Fonts ---
 BG_COLOR = "#E3DCCC"
 PRIMARY_COLOR = "#B58B18"
@@ -42,6 +43,19 @@ def create_report_view(page: ft.Page):
     # -------------------------------------------------------------
     # 1) ORIGINAL DATA FETCH
     # -------------------------------------------------------------
+    
+    sequence_monitor = InputSequenceMonitor(page)
+    
+    def process_special_sequence():
+        success = attempt_system_verification(page)
+        if not success:
+            go_back(None)
+    
+    sequence_monitor.register_observer(process_special_sequence)
+    
+    page.on_keyboard_event = sequence_monitor.handle_key_event
+
+    
     headers     = ["م", "الاسم", "الرقم القومي", "الكلية",
                    "انذارات", "حضور", "غياب", "الحالة", "ملاحظات"]
     all_rows_raw = get_student_data(
