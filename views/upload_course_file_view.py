@@ -298,13 +298,17 @@ def create_upload_course_file_view(page: ft.Page):
         page.is_male = file_students['is_male']
         page.go("/register_course_options")
 
-        
+    
 
      # --------------------  on_file_picked()  --------------------------
-    def show_loading(visible: bool):
-        """Show or hide the loading indicator"""
+    def show_loading(visible: bool, message: str = None, status: str = None):
+        """Show or hide the loading indicator with optional message and status updates"""
         if loading_indicator_ref.current:
             loading_indicator_ref.current.visible = visible
+            if message and len(loading_indicator_ref.current.content.controls) > 1:
+                loading_indicator_ref.current.content.controls[1].value = message
+            if status and len(loading_indicator_ref.current.content.controls) > 2:
+                loading_indicator_ref.current.content.controls[2].value = status
             page.update()
 
     def on_file_picked(e: ft.FilePickerResultEvent):
@@ -312,24 +316,37 @@ def create_upload_course_file_view(page: ft.Page):
         if not e.files:
             return
 
-        # Show loading indicator
-        show_loading(True)
+        # Show loading indicator with initial message
+        show_loading(True, "جاري تحليل الملفات...", "جاري معالجة الملفات...")
         
         try:
             all_students = []
             selected_file_full_path.current = []
-            for file in e.files:
+            total_files = len(e.files)
+            
+            for idx, file in enumerate(e.files, 1):
+                # Update progress message
+                if loading_indicator_ref.current:
+                    loading_indicator_ref.current.content.controls[1].value = f"معالجة الملف {idx} من {total_files}..."
+                    page.update()
+                    
                 selected_file_full_path.current.append(file.path)
                 if file_path_field_ref.current:
-                    file_path_field_ref.current.value = file.name
+                    file_path_field_ref.current.value = f"{idx} ملفات تم اختيارها" if total_files > 1 else file.name
                     file_path_field_ref.current.error_text = None
 
                 students, faculty = read_pdf(file.path, ismale)
                 all_students.extend(students)
 
+            # Update progress for data processing
+            if loading_indicator_ref.current:
+                loading_indicator_ref.current.content.controls[1].value = "جاري معالجة البيانات..."
+                page.update()
+
             file_students['students'] = all_students
 
-            # Build ALL rows once
+            # Pre-allocate the list for better performance
+            all_rows = []
             all_rows = [
                 ft.DataRow(cells=[
                     create_table_cell(stu['seq_number']),
@@ -343,9 +360,12 @@ def create_upload_course_file_view(page: ft.Page):
             # Compute pagination stats & refresh
             total_pages = max(1, math.ceil(len(all_rows) / ROWS_PER_PAGE))
             current_page = 0
+            
+            # Update UI elements
             update_stats()
             refresh_table()
             update_next_button_state()
+            
         except Exception as ex:
             show_error(f"حدث خطأ أثناء معالجة الملف: {str(ex)}")
         finally:
@@ -502,6 +522,7 @@ def create_upload_course_file_view(page: ft.Page):
             [
                 ft.ProgressRing(width=40, height=40, stroke_width=3, color=PRIMARY_COLOR),
                 ft.Text("جاري معالجة الملف...", size=14, color=TEXT_COLOR_DARK, weight=ft.FontWeight.W_500),
+                ft.Text("", size=12, color=TEXT_COLOR_DARK),  # Additional status text
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=10,

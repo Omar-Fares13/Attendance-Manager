@@ -2,6 +2,7 @@
 
 import flet as ft
 import math
+import asyncio
 from logic.students import create_students_from_file
 from components.banner import create_banner # Assuming banner component is reusable
 from utils.input_controler import InputSequenceMonitor
@@ -183,33 +184,75 @@ def create_edit_course_data_view(page: ft.Page):
         page.go("/register_course_options")
 
     def proceed_to_confirmation(e):
-        updated_data = []
+        # Disable button and change text and appearance
+        confirm_button.disabled = True
+        confirm_button.text = "جاري المعالجة..."
+        confirm_button.icon = ft.icons.PENDING
+        confirm_button.bgcolor = ft.colors.GREY_400  # Lighter color when disabled
+        confirm_button.color = ft.colors.GREY_700    # Darker text when disabled
+        confirm_button.style = ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=8)
+        )
+        page.update()
 
-        for r_idx, row_refs in enumerate(text_field_refs):
-            row_values = []
-            for rf in row_refs:
-                if rf.current:
-                    raw_val = rf.current.value          # could be str or int or None
-                    cleaned = str(raw_val).strip()      # cast to str, then strip
-                else:
-                    cleaned = ""
-                row_values.append(cleaned)
+        try:
+            # Pre-allocate the list with known size for better performance
+            updated_data = []
+            
+            # Process all rows at once instead of one by one
+            for r_idx, row_refs in enumerate(text_field_refs):
+                # Get all values from refs in one go, properly handling different types
+                values = []
+                for rf in row_refs:
+                    if rf.current:
+                        val = rf.current.value
+                        # Convert to string and strip if it's a string
+                        cleaned_val = str(val).strip() if val is not None else ""
+                    else:
+                        cleaned_val = ""
+                    values.append(cleaned_val)
+                
+                # Create student dict with minimal operations
+                updated_data.append({
+                    "name": values[0],
+                    "raw_name": raw_names[r_idx],
+                    "seq_number": values[1],
+                    "national_id": values[2],
+                    "faculty": values[3],
+                    "is_male": True if attribs['is_male'] == '1' or attribs['is_male'] == True else False
+                })
 
-            std = dict(
-                name        = row_values[0],
-                raw_name    = raw_names[r_idx],
-                seq_number  = row_values[1],
-                national_id = row_values[2],
-                faculty     = row_values[3],
-                is_male     = attribs['is_male'],
+            # Batch create all students at once
+            success = create_students_from_file(updated_data, attribs['date'], attribs['is_male'] == '1' or attribs['is_male'] == True)
+            
+            if success:
+                # Navigate back to dashboard only on success
+                page.routes = []
+                page.go("/dashboard")
+            else:
+                # If failed, restore button state
+                confirm_button.disabled = False
+                confirm_button.text = "تأكيد ومتابعة"
+                confirm_button.icon = ft.icons.CHECK_CIRCLE_OUTLINE
+                confirm_button.bgcolor = BUTTON_CONFIRM_COLOR
+                confirm_button.color = BUTTON_TEXT_COLOR
+                confirm_button.style = ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=8)
+                )
+                page.update()
+                
+        except Exception as ex:
+            # If error occurs, re-enable button and restore original state
+            confirm_button.disabled = False
+            confirm_button.text = "تأكيد ومتابعة"
+            confirm_button.icon = ft.icons.CHECK_CIRCLE_OUTLINE
+            confirm_button.bgcolor = BUTTON_CONFIRM_COLOR
+            confirm_button.color = BUTTON_TEXT_COLOR
+            confirm_button.style = ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8)
             )
-            updated_data.append(std)
-
-        create_students_from_file(updated_data,
-                                attribs['date'],
-                                attribs['is_male'])
-        page.routes = []
-        page.go("/dashboard")
+            page.update()
+            raise ex
 
     # ------------------------------------------------------------
     # 6) UI CONTROLS (unchanged except we insert nav_bar)
@@ -247,11 +290,17 @@ def create_edit_course_data_view(page: ft.Page):
     )
 
     confirm_button = ft.ElevatedButton(
-        key="confirm_section", text="تأكيد ومتابعة",
+        key="confirm_section",
+        text="تأكيد ومتابعة",
         icon=ft.icons.CHECK_CIRCLE_OUTLINE,
-        bgcolor=BUTTON_CONFIRM_COLOR, color=BUTTON_TEXT_COLOR,
-        height=50, width=220, on_click=proceed_to_confirmation,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+        bgcolor=BUTTON_CONFIRM_COLOR,
+        color=BUTTON_TEXT_COLOR,
+        height=50,
+        width=220,
+        on_click=proceed_to_confirmation,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=8)
+        )
     )
 
     # --- Get Banner ---

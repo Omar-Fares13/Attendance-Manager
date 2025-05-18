@@ -291,24 +291,77 @@ def get_students(search_attributes: dict[str, any]) -> List[Student]:
     return students
 
 def create_students_from_file(students, course_date, is_male):
-    with next(get_session()) as session:
-        stmt = (
-            select(Course.id)
-            .where(func.extract('day', Course.start_date) == course_date.day)
-            .where(Course.is_male_type == is_male)
-            .limit(1)
-        )
-        course_id = session.exec(stmt).one_or_none()
-        if course_id is None:
-            course = create_course(is_male_type = is_male, start_date = course_date)
-            course_id = course.id
-        for std in students:
-            std['course_id'] = course_id
-            std['is_male'] = is_male
-            if not 'raw_name' in std:
-                print("=" * 100)
-                std['raw_name'] = std['name']
-            create_student_from_dict(std)
+    try:
+        with next(get_session()) as session:
+            # Get or create course in a single transaction
+            stmt = (
+                select(Course.id)
+                .where(func.extract('day', Course.start_date) == course_date.day)
+                .where(Course.is_male_type == is_male)
+                .limit(1)
+            )
+            course_id = session.exec(stmt).one_or_none()
+            if course_id is None:
+                course = create_course(is_male_type=is_male, start_date=course_date)
+                course_id = course.id
+
+            # Collect all unique faculty names
+            faculty_names = {std.get('faculty', '') for std in students}
+            
+            # Get all existing faculties in one query
+            stmt = select(Faculty).where(Faculty.name.in_(faculty_names))
+            existing_faculties = {f.name: f for f in session.exec(stmt).all()}
+            
+            # Create missing faculties in bulk
+            new_faculties = []
+            for fname in faculty_names:
+                if fname not in existing_faculties:
+                    new_faculty = Faculty(name=fname)
+                    new_faculties.append(new_faculty)
+                    existing_faculties[fname] = new_faculty
+            
+            if new_faculties:
+                session.add_all(new_faculties)
+                session.flush()  # Get IDs for new faculties
+            
+            # Get current max sequence numbers for each faculty
+            stmt = (
+                select(Student.faculty_id, func.max(Student.seq_number).label('max_seq'))
+                .where(Student.course_id == course_id)
+                .group_by(Student.faculty_id)
+            )
+            seq_numbers = {r[0]: r[1] or 0 for r in session.exec(stmt)}
+            
+            # Prepare all students for bulk insert
+            new_students = []
+            for std in students:
+                faculty = existing_faculties[std.get('faculty', '')]
+                faculty_id = faculty.id
+                
+                # Increment sequence number for this faculty
+                seq_numbers[faculty_id] = seq_numbers.get(faculty_id, 0) + 1
+                
+                new_student = Student(
+                    name=std['name'],
+                    raw_name=std.get('raw_name', std['name']),
+                    seq_number=seq_numbers[faculty_id],
+                    national_id=std.get('national_id', ''),
+                    faculty_id=faculty_id,
+                    course_id=course_id,
+                    is_male=is_male,
+                    qr_code=str(uuid.uuid4())
+                )
+                new_students.append(new_student)
+            
+            # Bulk insert all students
+            session.add_all(new_students)
+            session.commit()
+            return True  # Return True on success
+    except Exception as e:
+        print(f"Error creating students: {e}")
+        import traceback
+        traceback.print_exc()
+        return False  # Return False on failure
 
 def save_note(note : str, student_id : int, is_warning : bool = False):
     note_entry = Note(note = note, student_id = student_id, is_warning = is_warning)
