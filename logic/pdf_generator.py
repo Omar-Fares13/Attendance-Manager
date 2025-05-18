@@ -63,6 +63,9 @@ def generate_qr_pdfs(page: ft.Page):
             # Generate PDFs for each student
             total = len(students)
             success_count = 0
+            
+            # Track created folders to avoid recreating them
+            created_folders = set()
 
             for i, student in enumerate(students):
                 try:
@@ -72,28 +75,34 @@ def generate_qr_pdfs(page: ft.Page):
                         print(f"Warning: No course found for student {student.name} (ID: {student.id})")
                         continue
 
-                    # Format date ranges for the filename (day/month only)
-                    # Assuming start_date and end_date are datetime objects
+                    # Format date ranges for folder and filename (day/month only)
                     start_date_str = course.start_date.strftime("%d-%m")
                     end_date_str = course.end_date.strftime("%d-%m")
                     date_range = f"{start_date_str}-{end_date_str}"
 
-                    # Format filename: seq_faculty_gender_daterange.pdf
-                    # Assuming is_male is a boolean
-                    gender = "ذكور" if student.is_male else "اناث"
-                    # Assuming student.faculty.name exists and is a string
+                    # Create folder name based on course and gender
+                    gender_text = "ذكور" if student.is_male else "اناث"
                     faculty_name = student.faculty.name.replace(" ", "_")
-                    # Assuming student.seq_number exists and is a string/number
-                    filename = f"{student.seq_number}_{faculty_name}_{gender}_{date_range}.pdf"
-                    filepath = os.path.join(save_dir, filename)
+                    
+                    # Create folder name: faculty_gender_courseID_daterange
+                    folder_name = f"{gender_text}_دورة_{date_range}"
+                    course_folder_path = os.path.join(save_dir, folder_name)
+                    
+                    # Create the folder if it doesn't exist
+                    if folder_name not in created_folders:
+                        os.makedirs(course_folder_path, exist_ok=True)
+                        created_folders.add(folder_name)
+
+                    # Create student PDF filename
+                    filename = f"{student.seq_number}_{faculty_name}.pdf"
+                    filepath = os.path.join(course_folder_path, filename)
 
                     # Create PDF
                     buffer = io.BytesIO()
                     p = canvas.Canvas(buffer, pagesize=A4)
 
                     # Generate QR code and convert to ImageReader
-                    # Assuming student.qr_code contains the data for the QR
-                    qr_buffer = generate_qr_code(student.qr_code) # This should return bytes or a bytes-like object
+                    qr_buffer = generate_qr_code(student.qr_code)
                     img = ImageReader(qr_buffer)
                     p.drawImage(img, 175, 400, width=250, height=250)
 
