@@ -68,7 +68,6 @@ python main.py
 You’ll see a modern desktop window ready to use. No additional setup is necessary!
 
 ---
-venv\Scripts\activate
 
 ## 📁 About the Technology
 

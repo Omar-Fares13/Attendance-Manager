@@ -1,7 +1,5 @@
 import asyncio
 import flet as ft
-
-
 # --- Splash Screen View Creation Function ---
 def create_main_screen_view(page: ft.Page):
     """Creates the 'Splash Screen' view: shows a logo then navigates to dashboard."""
@@ -15,13 +13,12 @@ def create_main_screen_view(page: ft.Page):
     )
 
     # Timer to navigate after 3 seconds (3000 ms)
-    async def _go_login():
+    async def _go_dashboard():
         print("wait")
         await asyncio.sleep(1.0)
         page.routes = []
-        page.go("/login")
-
-    page.run_task(_go_login)
+        page.go("/dashboard")
+    page.run_task(_go_dashboard)
 
     # Build the view
     view = ft.View(

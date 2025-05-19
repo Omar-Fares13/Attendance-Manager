@@ -21,8 +21,6 @@ STATS_CARD_COLOR = "#F5F5F5"
 
 file_students = {}
 
-# Add loading indicator reference
-loading_indicator_ref = ft.Ref[ft.Container]()
 
 def create_table_cell(text_content):
     return ft.DataCell(ft.Text(str(text_content), color=CELL_TEXT_COLOR, text_align=ft.TextAlign.RIGHT, size=13))
@@ -145,6 +143,8 @@ def create_upload_course_file_view(page: ft.Page):
     data_table_ref      = ft.Ref[ft.DataTable]()
     stats_container_ref = ft.Ref[ft.Container]()
     faculty_stats_ref   = ft.Ref[ft.Column]()
+    progress_ring_ref = ft.Ref[ft.ProgressRing]()
+    progress_container_ref = ft.Ref[ft.Container]()
 
     file_students['is_male'] = page.is_male
     ismale = file_students['is_male']
@@ -298,55 +298,31 @@ def create_upload_course_file_view(page: ft.Page):
         page.is_male = file_students['is_male']
         page.go("/register_course_options")
 
-    
-
      # --------------------  on_file_picked()  --------------------------
-    def show_loading(visible: bool, message: str = None, status: str = None):
-        """Show or hide the loading indicator with optional message and status updates"""
-        if loading_indicator_ref.current:
-            loading_indicator_ref.current.visible = visible
-            if message and len(loading_indicator_ref.current.content.controls) > 1:
-                loading_indicator_ref.current.content.controls[1].value = message
-            if status and len(loading_indicator_ref.current.content.controls) > 2:
-                loading_indicator_ref.current.content.controls[2].value = status
-            page.update()
-
     def on_file_picked(e: ft.FilePickerResultEvent):
         nonlocal total_pages, all_rows, current_page
         if not e.files:
             return
-
-        # Show loading indicator with initial message
-        show_loading(True, "جاري تحليل الملفات...", "جاري معالجة الملفات...")
+        
+        # Show loading indicator
+        progress_container_ref.current.visible = True
+        page.update()
         
         try:
             all_students = []
             selected_file_full_path.current = []
-            total_files = len(e.files)
-            
-            for idx, file in enumerate(e.files, 1):
-                # Update progress message
-                if loading_indicator_ref.current:
-                    loading_indicator_ref.current.content.controls[1].value = f"معالجة الملف {idx} من {total_files}..."
-                    page.update()
-                    
+            for file in e.files:
                 selected_file_full_path.current.append(file.path)
                 if file_path_field_ref.current:
-                    file_path_field_ref.current.value = f"{idx} ملفات تم اختيارها" if total_files > 1 else file.name
+                    file_path_field_ref.current.value = file.name
                     file_path_field_ref.current.error_text = None
 
                 students, faculty = read_pdf(file.path, ismale)
                 all_students.extend(students)
 
-            # Update progress for data processing
-            if loading_indicator_ref.current:
-                loading_indicator_ref.current.content.controls[1].value = "جاري معالجة البيانات..."
-                page.update()
-
             file_students['students'] = all_students
 
-            # Pre-allocate the list for better performance
-            all_rows = []
+            # Build ALL rows once
             all_rows = [
                 ft.DataRow(cells=[
                     create_table_cell(stu['seq_number']),
@@ -360,17 +336,14 @@ def create_upload_course_file_view(page: ft.Page):
             # Compute pagination stats & refresh
             total_pages = max(1, math.ceil(len(all_rows) / ROWS_PER_PAGE))
             current_page = 0
-            
-            # Update UI elements
             update_stats()
             refresh_table()
             update_next_button_state()
-            
-        except Exception as ex:
-            show_error(f"حدث خطأ أثناء معالجة الملف: {str(ex)}")
         finally:
-            # Hide loading indicator
-            show_loading(False)
+            # Hide loading indicator when done (whether success or error)
+            progress_container_ref.current.visible = False
+            page.update()
+
     # ------------------------------------------------------------------
 
     def pick_file(e):
@@ -453,6 +426,21 @@ def create_upload_course_file_view(page: ft.Page):
     )
 
     # --- UI controls ---
+    # Create the progress container itself
+    progress_container = ft.Container(
+        ref=progress_container_ref,
+        content=ft.Column([
+            ft.ProgressRing(ref=progress_ring_ref, width=40, height=40, stroke_width=3, color=PRIMARY_COLOR),
+            ft.Text("جاري قراءة الملفات...", color=PRIMARY_COLOR, size=14, weight=ft.FontWeight.BOLD),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+        alignment=ft.alignment.center,
+        padding=10,
+        bgcolor=ft.colors.with_opacity(0.9, WHITE_COLOR),
+        border_radius=10,
+        width=200,
+        height=100,
+        visible=False,  # Hidden by default
+    )
     back_button = ft.IconButton(
         icon=ft.icons.ARROW_FORWARD_OUTLINED, icon_color=PRIMARY_COLOR,
         tooltip="العودة", on_click=go_back, icon_size=30
@@ -514,23 +502,6 @@ def create_upload_course_file_view(page: ft.Page):
 
     banner_control = create_banner()
 
-    # Create loading indicator
-    loading_indicator = ft.Container(
-        ref=loading_indicator_ref,
-        visible=False,
-        content=ft.Column(
-            [
-                ft.ProgressRing(width=40, height=40, stroke_width=3, color=PRIMARY_COLOR),
-                ft.Text("جاري معالجة الملف...", size=14, color=TEXT_COLOR_DARK, weight=ft.FontWeight.W_500),
-                ft.Text("", size=12, color=TEXT_COLOR_DARK),  # Additional status text
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=10,
-        ),
-        alignment=ft.alignment.center,
-        padding=ft.padding.only(top=20, bottom=20),
-    )
-
     content_column = ft.Column(
         [
             ft.Container(
@@ -544,22 +515,22 @@ def create_upload_course_file_view(page: ft.Page):
                 [date_field, file_path_field],
                 alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.START, spacing=20,
             ),
+            progress_container,
             ft.Container(height=15),
             ft.Row([next_step_button], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
             ft.Row([info_text], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=15),
-            loading_indicator,  # Add loading indicator here
             stats_container,
             nav_bar,
             ft.Row(
                 [ft.Container(content=data_table, width=700)],
-                alignment=ft.MainAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER
             ),
+            ft.Container(height=30),
         ],
-        expand=True,
-        scroll=ft.ScrollMode.ADAPTIVE,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True, scroll=ft.ScrollMode.ADAPTIVE,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
     return ft.View(

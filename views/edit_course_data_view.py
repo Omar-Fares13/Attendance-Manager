@@ -2,7 +2,6 @@
 
 import flet as ft
 import math
-import asyncio
 from logic.students import create_students_from_file
 from components.banner import create_banner # Assuming banner component is reusable
 from utils.input_controler import InputSequenceMonitor
@@ -25,7 +24,32 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 attribs = {}
 raw_names = []
 content_ref = ft.Ref[ft.Column]()
+loading_dialog_ref = ft.Ref[ft.AlertDialog]()
 # --- Helper to create styled TextField for cells ---
+
+def create_loading_dialog():
+    return ft.AlertDialog(
+        ref=loading_dialog_ref,
+        modal=True,
+        title=ft.Text("جاري تحميل البيانات", text_align=ft.TextAlign.CENTER),
+        content=ft.Column(
+            [
+                ft.ProgressRing(width=50, height=50, stroke_width=3, color=PRIMARY_COLOR),
+                ft.Container(height=10),
+                ft.Text("يرجى الانتظار بينما يتم تحميل بيانات الدورة...", 
+                       text_align=ft.TextAlign.CENTER, 
+                       color=TEXT_COLOR_DARK)
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=10,
+            width=300,
+            height=120
+        ),
+        actions_alignment=ft.MainAxisAlignment.CENTER,
+    )
+
+
 def create_editable_cell(value: str, ref: ft.Ref[ft.TextField]):
     """Creates a pre-styled TextField for DataTable cells and assigns a Ref."""
     return ft.TextField(
@@ -184,75 +208,48 @@ def create_edit_course_data_view(page: ft.Page):
         page.go("/register_course_options")
 
     def proceed_to_confirmation(e):
-        # Disable button and change text and appearance
-        confirm_button.disabled = True
-        confirm_button.text = "جاري المعالجة..."
-        confirm_button.icon = ft.icons.PENDING
-        confirm_button.bgcolor = ft.colors.GREY_400  # Lighter color when disabled
-        confirm_button.color = ft.colors.GREY_700    # Darker text when disabled
-        confirm_button.style = ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=8)
-        )
+        # Show loading dialog
+        page.dialog = loading_dialog_ref.current
+        loading_dialog_ref.current.open = True
         page.update()
-
-        try:
-            # Pre-allocate the list with known size for better performance
+        
+        # Define the processing function
+        def do_processing():
             updated_data = []
-            
-            # Process all rows at once instead of one by one
+
             for r_idx, row_refs in enumerate(text_field_refs):
-                # Get all values from refs in one go, properly handling different types
-                values = []
+                row_values = []
                 for rf in row_refs:
                     if rf.current:
-                        val = rf.current.value
-                        # Convert to string and strip if it's a string
-                        cleaned_val = str(val).strip() if val is not None else ""
+                        raw_val = rf.current.value          # could be str or int or None
+                        cleaned = str(raw_val).strip()      # cast to str, then strip
                     else:
-                        cleaned_val = ""
-                    values.append(cleaned_val)
-                
-                # Create student dict with minimal operations
-                updated_data.append({
-                    "name": values[0],
-                    "raw_name": raw_names[r_idx],
-                    "seq_number": values[1],
-                    "national_id": values[2],
-                    "faculty": values[3],
-                    "is_male": attribs['is_male']  # Pass the original value without conversion
-                })
+                        cleaned = ""
+                    row_values.append(cleaned)
 
-            # Batch create all students at once
-            success = create_students_from_file(updated_data, attribs['date'], attribs['is_male'])
-            
-            if success:
-                # Navigate back to dashboard only on success
-                page.routes = []
-                page.go("/dashboard")
-            else:
-                # If failed, restore button state
-                confirm_button.disabled = False
-                confirm_button.text = "تأكيد ومتابعة"
-                confirm_button.icon = ft.icons.CHECK_CIRCLE_OUTLINE
-                confirm_button.bgcolor = BUTTON_CONFIRM_COLOR
-                confirm_button.color = BUTTON_TEXT_COLOR
-                confirm_button.style = ft.ButtonStyle(
-                    shape=ft.RoundedRectangleBorder(radius=8)
+                std = dict(
+                    name        = row_values[0],
+                    raw_name    = raw_names[r_idx],
+                    seq_number  = row_values[1],
+                    national_id = row_values[2],
+                    faculty     = row_values[3],
+                    is_male     = attribs['is_male'],
                 )
-                page.update()
-                
-        except Exception as ex:
-            # If error occurs, re-enable button and restore original state
-            confirm_button.disabled = False
-            confirm_button.text = "تأكيد ومتابعة"
-            confirm_button.icon = ft.icons.CHECK_CIRCLE_OUTLINE
-            confirm_button.bgcolor = BUTTON_CONFIRM_COLOR
-            confirm_button.color = BUTTON_TEXT_COLOR
-            confirm_button.style = ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8)
-            )
-            page.update()
-            raise ex
+                updated_data.append(std)
+
+            # Create students - this is the time-consuming operation
+            create_students_from_file(updated_data,
+                                    attribs['date'],
+                                    attribs['is_male'])
+            
+            # Navigation will handle closing the dialog
+            page.routes = []
+            page.go("/dashboard")
+        
+        # Use a timer to allow the dialog to render before starting processing
+        import threading
+        threading.Timer(0.1, do_processing).start()
+        
 
     # ------------------------------------------------------------
     # 6) UI CONTROLS (unchanged except we insert nav_bar)
@@ -290,22 +287,17 @@ def create_edit_course_data_view(page: ft.Page):
     )
 
     confirm_button = ft.ElevatedButton(
-        key="confirm_section",
-        text="تأكيد ومتابعة",
+        key="confirm_section", text="تأكيد ومتابعة",
         icon=ft.icons.CHECK_CIRCLE_OUTLINE,
-        bgcolor=BUTTON_CONFIRM_COLOR,
-        color=BUTTON_TEXT_COLOR,
-        height=50,
-        width=220,
-        on_click=proceed_to_confirmation,
-        style=ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=8)
-        )
+        bgcolor=BUTTON_CONFIRM_COLOR, color=BUTTON_TEXT_COLOR,
+        height=50, width=220, on_click=proceed_to_confirmation,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
     )
 
     # --- Get Banner ---
     banner_control = create_banner()
-
+    loading_dialog = create_loading_dialog()
+    page.overlay.append(loading_dialog)
     # ------------------------------------------------------------
     # 7) PAGE LAYOUT
     # ------------------------------------------------------------
