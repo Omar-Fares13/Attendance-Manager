@@ -127,7 +127,9 @@ def create_add_student_view(page: ft.Page):
     national_id_field = create_form_field("الرقم القومي", "national_id", form)
     phone_field = create_form_field("رقم الهاتف", "phone_number", form)
     address_field = create_form_field("عنوان محل الاقامة", "location", form)
-    
+    capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT, autofocus=True,
+                                       style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                                       bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
     # Faculty dropdown
     faculty_field = ft.Dropdown(
         label="الكلية",

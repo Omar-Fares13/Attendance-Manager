@@ -438,6 +438,7 @@ def create_camera_qr_view(page: ft.Page):
     return_button_main = ft.ElevatedButton("الرجوع", icon=ft.icons.ARROW_BACK,
                                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
                                            bgcolor="#5C544A", color=ft.colors.WHITE, height=45, on_click=go_back)
+    
     capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT, autofocus=True,
                                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
                                        bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
