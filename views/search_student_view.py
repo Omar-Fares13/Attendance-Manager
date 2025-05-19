@@ -387,9 +387,9 @@ def create_search_student_view(page: ft.Page):
         height=button_height, style=button_style, on_click=add_file_click,
         tooltip="إضافة مجموعة طلاب من ملف (Excel, CSV)"
     )
-    # Layout for Action Buttons
+    # Layout for Action Buttons          [add_student_btn, add_file_btn],
     action_buttons_row = ft.Row(
-        [add_student_btn, add_file_btn],
+        [add_student_btn],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20,
         wrap=True,  # Allow wrapping on small screens

@@ -126,6 +126,7 @@ def create_add_student_view(page: ft.Page):
     name_field = create_form_field("الاسم", "name", form)
     national_id_field = create_form_field("الرقم القومي", "national_id", form)
     phone_field = create_form_field("رقم الهاتف", "phone_number", form)
+    address_field = create_form_field("عنوان محل الاقامة", "location", form)
     
     # Faculty dropdown
     faculty_field = ft.Dropdown(
@@ -182,7 +183,7 @@ def create_add_student_view(page: ft.Page):
         print("Save button clicked!")
         
         # Validation
-        if not all(k in form.attributes for k in ["name", "faculty_id", "is_male", "course_id"]):
+        if not all(k in form.attributes for k in ["name", "faculty_id", "is_male", "course_id", "location"]):
             page.snack_bar = ft.SnackBar(ft.Text("يرجى إدخال جميع البيانات المطلوبة"))
             page.snack_bar.open = True
             page.update()
@@ -225,6 +226,7 @@ def create_add_student_view(page: ft.Page):
                 controls=[
                     name_field,
                     national_id_field,
+                    address_field,
                     course_field,  # Added course field
                 ]
             ),

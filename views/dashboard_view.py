@@ -97,11 +97,11 @@ def create_dashboard_view(page: ft.Page):
     )
     # Dashboard cards
     card_data = [
-        {"icon": ICON_QR_CODE,  "text": "إنشاء ملفات QR",    "action": "generate_qr_pdfs"},
         {"icon": ICON_REGISTER, "text": "تسجيل دورة جديدة", "action": "register"},
         {"icon": ICON_MANAGE,   "text": "إدارة دورة",        "action": "manage"},
-        {"icon": ICON_REPORT,   "text": "استخراج تقارير",    "action": "reports"},
         {"icon": ICON_COLLEGE,  "text": "إدارة كليات",       "action": "colleges"},
+        {"icon": ICON_QR_CODE,  "text": "إنشاء ملفات QR",    "action": "generate_qr_pdfs"},
+        {"icon": ICON_REPORT,   "text": "استخراج تقارير",    "action": "reports"},
     ]
     dashboard_items = [
         create_dashboard_card(page, item["icon"], item["text"], item["action"])
