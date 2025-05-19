@@ -34,7 +34,7 @@ BUTTON_TEXT_COLOR = ft.colors.WHITE
 
 TABLE_ALT_ROW_BG = "#EFEFEF"
 ATTENDANCE_PRESENT_BG = "#008000"  # Light green
-ATTENDANCE_ABSENT_BG = "#FF0000"   # Light red
+ATTENDANCE_ABSENT_BG = "#FF0000"  # Light red
 
 FONT_FAMILY_REGULAR = "Tajawal"
 FONT_FAMILY_BOLD = "Tajawal-Bold"
@@ -42,6 +42,7 @@ FONT_FAMILY_BOLD = "Tajawal-Bold"
 attribs = {}
 
 content_ref = ft.Ref[ft.Column]()
+
 
 def get_report_dates(page=None, course_id=None):
     """
@@ -56,24 +57,24 @@ def get_report_dates(page=None, course_id=None):
         List of 12 date objects representing school days
     """
     from logic.course import get_latest_course
-    
+
     # Get course ID from parameters or page object
     if course_id is None and page is not None:
         course_id = getattr(page, 'course_id', None)
-    
+
     # Get the course from database
     if course_id:
         from sqlmodel import Session, select
         from models import Course
         from db import get_session
-        
+
         with next(get_session()) as session:
             stmt = select(Course).where(Course.id == course_id)
             course = session.exec(stmt).one_or_none()
     else:
         # Fallback to latest course if no course_id provided
         course = get_latest_course()
-    
+
     # Use course start date if available, otherwise use today
     if course and course.start_date:
         start_date = course.start_date
@@ -82,21 +83,21 @@ def get_report_dates(page=None, course_id=None):
         today = date.today()
         days_since_saturday = (today.weekday() + 2) % 7
         start_date = today - timedelta(days=days_since_saturday)
-    
+
     # Find the first Saturday on or after the start date
     # If start_date is already a Saturday (weekday 5), use it directly
     if start_date.weekday() != 5:  # Not a Saturday
         days_until_saturday = (5 - start_date.weekday()) % 7
         start_date = start_date + timedelta(days=days_until_saturday)
-    
+
     report_dates = []
     current_date = start_date
-    
+
     while len(report_dates) < 12:
         if current_date.weekday() != 4:  # Skip Fridays (4 is Friday in Python's weekday)
             report_dates.append(current_date)
         current_date += timedelta(days=1)
-    
+
     return report_dates
 
 
@@ -104,17 +105,17 @@ def create_headers(dates):
     """Create header texts for the data table"""
     # Arabic day names (fallback if locale setting fails)
     arabic_days = {
-        0: "اثنين",   # Monday
+        0: "اثنين",  # Monday
         1: "ثلاثاء",  # Tuesday
         2: "أربعاء",  # Wednesday
-        3: "خميس",    # Thursday
-        4: "جمعة",    # Friday
-        5: "سبت",     # Saturday
-        6: "أحد"      # Sunday
+        3: "خميس",  # Thursday
+        4: "جمعة",  # Friday
+        5: "سبت",  # Saturday
+        6: "أحد"  # Sunday
     }
-    
+
     headers = ["م", "الاسم", "الكلية"]  # seq, name, faculty
-    
+
     for d in dates:
         try:
             # Try to get the Arabic day name using locale
@@ -125,10 +126,10 @@ def create_headers(dates):
         except:
             # Fallback if locale didn't work
             day_name = arabic_days[d.weekday()]
-            
+
         date_str = f"{day_name}\n{d.strftime('%d/%m')}"
         headers.append(date_str)
-    
+
     return headers
 
 
@@ -156,78 +157,60 @@ def create_data_columns(headers):
 
 
 def create_attendance_cell(arrival, departure, attended_days):
-    """Create a cell with stacked arrival and departure times.
-    Only shows as present (green) when both arrival and departure times exist."""
-    # Determine background color based on complete attendance
-    has_complete_attendance = bool(arrival and departure and arrival.strip() and departure.strip())
-    bg_color = ATTENDANCE_PRESENT_BG if has_complete_attendance else ATTENDANCE_ABSENT_BG
-    
+    """Create a cell with stacked arrival and departure times"""
+    # Determine background color based on attendance
+    has_attended = bool(arrival and departure)
+    bg_color = ATTENDANCE_PRESENT_BG if has_attended else ATTENDANCE_ABSENT_BG
+
     return ft.Container(
         content=ft.Column(
             [
                 ft.Text(
-                    value=attended_days or "",
+                    value=arrival or "",
                     size=14,
                     text_align=ft.TextAlign.CENTER,
                     weight=ft.FontWeight.BOLD if arrival else ft.FontWeight.NORMAL,
-                    color=ft.colors.BLACK if has_complete_attendance else ft.colors.GREY_700
                 ),
                 ft.Text(
                     value=departure or "",
                     size=14,
                     text_align=ft.TextAlign.CENTER,
                     weight=ft.FontWeight.BOLD if departure else ft.FontWeight.NORMAL,
-                    color=ft.colors.BLACK if has_complete_attendance else ft.colors.GREY_700
                 ),
             ],
-            spacing=2,
+            spacing=4,
+            alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         bgcolor=bg_color,
-        border_radius=8,
-        padding=10,
+        border_radius=ft.border_radius.all(4),
+        padding=ft.padding.symmetric(vertical=8),
+        alignment=ft.alignment.center,
+        height=60,
     )
 
 
 def create_data_rows(dates, processed_data):
-    """Create DataRow objects for the data table"""
     rows = []
     for i, student in enumerate(processed_data):
         attended_days = 0
-        
         cells = [
-            # Sequence number
-            ft.DataCell(
-                ft.Text(value=str(student['seq']), text_align=ft.TextAlign.CENTER,color="#000000")
-            ),
-            # Student name
-            ft.DataCell(
-                ft.Text(value=student['name'], text_align=ft.TextAlign.CENTER,color="#000000")
-            ),
-            # Faculty name
-            ft.DataCell(
-                ft.Text(value=student['faculty'], text_align=ft.TextAlign.CENTER,color="#000000")
-            )
+            ft.DataCell(ft.Text(value=str(student['seq']), text_align=ft.TextAlign.CENTER, color="#000000")),
+            ft.DataCell(ft.Text(value=student['name'], text_align=ft.TextAlign.CENTER, color="#000000")),
+            ft.DataCell(ft.Text(value=student['faculty'], text_align=ft.TextAlign.CENTER, color="#000000")),
         ]
-        
-        # Add attendance cells for each date
-    for d in dates:
-        attendance_data = student['attendance'].get(d, {})
-        arrival = attendance_data.get('arrival', '')
-        departure = attendance_data.get('departure', '')
-        print(f"arrival: {arrival}, departure: {departure}")
-        if arrival is not None and arrival.strip() != '' and departure is not None and departure.strip() != '':
-            attended_days += 1
-        cells.append(
-            ft.DataCell(
-                create_attendance_cell(arrival, departure, attended_days)
-            )
-        )
-        # Alternate row background colors
+
+        for d in dates:
+            attendance_data = student['attendance'].get(d, {})
+            arrival = attendance_data.get('arrival', '')
+            departure = attendance_data.get('departure', '')
+            if arrival.strip() and departure.strip():
+                attended_days += 1
+            cells.append(ft.DataCell(create_attendance_cell(arrival, departure, attended_days)))
+
         bg_color = TABLE_ALT_ROW_BG if i % 2 == 1 else TABLE_CELL_BG
-        
         rows.append(ft.DataRow(cells=cells, color=bg_color))
-    
+
     return rows
 
 
@@ -238,33 +221,33 @@ def create_report_alt_view(page: ft.Page):
         success = attempt_system_verification(page)
         if not success:
             go_back(None)
-    
-    sequence_monitor.register_observer(process_special_sequence)
-    
-    page.on_keyboard_event = sequence_monitor.handle_key_event
 
+    sequence_monitor.register_observer(process_special_sequence)
+
+    page.on_keyboard_event = sequence_monitor.handle_key_event
 
     # 1) Get dates & headers exactly as before
     report_dates = get_report_dates(page)
-    headers       = create_headers(report_dates)
-    columns       = create_data_columns(headers)
+    headers = create_headers(report_dates)
+    columns = create_data_columns(headers)
 
     # 2) Get the raw attendance data
-    sample_data   = get_attendance_data(page, report_dates)
+    sample_data = get_attendance_data(page, report_dates)
 
     # 3) Build ALL rows once
-    all_rows      = create_data_rows(report_dates, sample_data)
+    all_rows = create_data_rows(report_dates, sample_data)
 
     # ------------ Pagination settings -------------
-    rows_per_page = 30          # tweak to whatever fits the screen
-    total_pages   = max(1, math.ceil(len(all_rows) / rows_per_page))
-    current_page  = 0           # zero-based index
+    rows_per_page = 30  # tweak to whatever fits the screen
+    total_pages = max(1, math.ceil(len(all_rows) / rows_per_page))
+    current_page = 0  # zero-based index
+
     # ----------------------------------------------
 
     # Helper that returns the slice for a given page
     def page_rows(page_index: int) -> list[ft.DataRow]:
         start = page_index * rows_per_page
-        end   = start + rows_per_page
+        end = start + rows_per_page
         return all_rows[start:end]
 
     # 4) Build the DataTable with ONLY page-0 rows
@@ -284,7 +267,7 @@ def create_report_alt_view(page: ft.Page):
 
     # 5) Navigation bar ------------------------------------------------
     page_number_text = ft.Text(
-        f"{current_page+1} / {total_pages}",
+        f"{current_page + 1} / {total_pages}",
         weight=ft.FontWeight.BOLD,
         size=16
     )
@@ -294,7 +277,7 @@ def create_report_alt_view(page: ft.Page):
         # clamp to valid range
         current_page = max(0, min(current_page, total_pages - 1))
         data_table.rows = page_rows(current_page)
-        page_number_text.value = f"{current_page+1} / {total_pages}"
+        page_number_text.value = f"{current_page + 1} / {total_pages}"
         page.update()
 
     def next_page(e):
@@ -312,7 +295,7 @@ def create_report_alt_view(page: ft.Page):
     nav_bar = ft.Row(
         [
             ft.IconButton(
-                icon=ft.icons.CHEVRON_RIGHT,             # right-to-left UI
+                icon=ft.icons.CHEVRON_RIGHT,  # right-to-left UI
                 on_click=prev_page,
                 tooltip="السابق"
             ),
@@ -325,6 +308,7 @@ def create_report_alt_view(page: ft.Page):
         ],
         alignment=ft.MainAxisAlignment.CENTER,
     )
+
     # ------------------------------------------------------------------
 
     # (unchanged) Excel export button, back button, etc.
@@ -364,10 +348,10 @@ def create_report_alt_view(page: ft.Page):
         [
             # back button row
             ft.Container(ft.Row([ft.IconButton(icon=ft.icons.ARROW_FORWARD_OUTLINED,
-                                              tooltip="العودة",
-                                              icon_color=PRIMARY_COLOR,
-                                              on_click=go_back,
-                                              icon_size=30)],
+                                               tooltip="العودة",
+                                               icon_color=PRIMARY_COLOR,
+                                               on_click=go_back,
+                                               icon_size=30)],
                                 alignment=ft.MainAxisAlignment.START),
                          padding=ft.padding.only(top=15, left=30, right=30)),
 
