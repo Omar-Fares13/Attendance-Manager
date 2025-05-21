@@ -5,8 +5,21 @@ from utils.assets import ft_asset
 from logic.students import create_student_from_dict
 from logic.faculties import get_all_faculties
 from logic.course import get_all_courses
+from utils.camera_utils import CameraManager, create_camera_view
 from utils.input_controler import InputSequenceMonitor
 from views.mark_attendance_departure_view import attempt_system_verification
+import uuid
+import os
+import cv2
+from sqlalchemy.orm import sessionmaker
+from db import get_session
+import numpy as np
+import threading
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton
+from logic.qr_generator import generate_qr_code
+from PyQt5.QtCore import Qt
+
 # Using a class to better manage the component state
 class AddStudentForm:
     def __init__(self):
@@ -77,6 +90,8 @@ def create_form_field(label: str, name: str, form: AddStudentForm):
         on_change=lambda e: form.update_field(e.control.data, e.control.value)
     )
 
+    
+
 
 # --- Main View Creation Function ---
 def create_add_student_view(page: ft.Page):
@@ -127,9 +142,186 @@ def create_add_student_view(page: ft.Page):
     national_id_field = create_form_field("الرقم القومي", "national_id", form)
     phone_field = create_form_field("رقم الهاتف", "phone_number", form)
     address_field = create_form_field("عنوان محل الاقامة", "location", form)
-    capture_button = ft.ElevatedButton("التقاط", icon=ft.icons.CAMERA_ALT, autofocus=True,
-                                       style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
-                                       bgcolor="#6FA03C", color=ft.colors.WHITE, height=45, on_click=capture_click)
+    
+
+    
+    # Create success message with QR button
+    def show_qr_click(student):
+        buf = generate_qr_code(student.qr_code)
+        data = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+        img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        if img is None:
+            print("Failed to decode QR image")
+            return
+
+        # Convert BGR to RGB for PyQt
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        threading.Thread(
+            target=show_qr_window,
+            args=(img_rgb, student.name, student.national_id),
+            daemon=True
+        ).start()
+
+    def show_qr_window(image, student_name, student_id):
+        """Displays a minimized, always-on-top QR code window with student info and close button"""
+        # Convert OpenCV image to QImage
+        height, width, channel = image.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+
+        app = QApplication.instance()
+        if not app:
+            app = QApplication([])
+
+        # Create main window
+        window = QWidget()
+        window.setWindowTitle(f"QR Code - {student_name} ({student_id})")
+        window.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.WindowMinimizeButtonHint)
+
+        # Create layout
+        layout = QVBoxLayout()
+
+        # Add QR code image
+        label = QLabel()
+        label.setPixmap(QPixmap.fromImage(qimage))
+        layout.addWidget(label)
+
+        # Add close button
+        close_btn = QPushButton("إغلاق")
+        close_btn.clicked.connect(window.close)
+        layout.addWidget(close_btn)
+
+        # Set layout and show window
+        window.setLayout(layout)
+        window.show()  # Still needed to display
+
+        app.exec_()
+
+    # Initialize camera manager
+    camera_manager = CameraManager()
+    
+    # Create camera UI
+    camera_container = camera_manager.create_camera_ui()
+
+
+    def capture_click(e):
+        print("Capture Clicked")
+        if camera_manager.latest_frame is not None and not camera_manager.stop_camera_event.is_set():
+            try:
+                # Generate a temporary QR code for the filename
+                temp_qr = str(uuid.uuid4())
+                form.update_field("temp_qr", temp_qr)
+                
+                # Use the AppData path for saving images
+                from db import images_dir
+                
+                filename = f"{temp_qr}.jpg"
+                filepath = os.path.join(images_dir, filename)
+                
+                if camera_manager.latest_frame.size == 0:
+                    print("Error: Captured frame empty.")
+                    snackbar = ft.SnackBar(
+                        content=ft.Text("خطأ: الإطار الملتقط فارغ.", color=ft.colors.RED_700),
+                        bgcolor=ft.colors.RED_100
+                    )
+                    page.overlay.append(snackbar)
+                    page.update()
+                    snackbar.open = True
+                    snackbar.update()
+                    return
+                    
+                success = cv2.imwrite(filepath, camera_manager.latest_frame)
+                if success:
+                    print(f"Image saved: {filepath}")
+                    form.update_field("photo_path", filepath)
+                    snackbar = ft.SnackBar(
+                        content=ft.Column([
+                            ft.Text("تم حفظ الصورة بنجاح", color=ft.colors.GREEN_700, size=16, weight=ft.FontWeight.BOLD),
+                            ft.Text(f"تم حفظ الصورة في: {filepath}", color=ft.colors.GREEN_700, size=14)
+                        ]),
+                        bgcolor=ft.colors.GREEN_100,
+                        duration=5000
+                    )
+                    page.overlay.append(snackbar)
+                    page.update()
+                    snackbar.open = True
+                    snackbar.update()
+                else:
+                    print(f"Error saving image.")
+                    snackbar = ft.SnackBar(
+                        content=ft.Text("حدث خطأ أثناء حفظ الصورة (فشل OpenCV).", color=ft.colors.RED_700),
+                        bgcolor=ft.colors.RED_100
+                    )
+                    page.overlay.append(snackbar)
+                    page.update()
+                    snackbar.open = True
+                    snackbar.update()
+            except cv2.error as cv_err:
+                print(f"OpenCV Error: {cv_err}")
+                snackbar = ft.SnackBar(
+                    content=ft.Text(f"خطأ OpenCV: {cv_err}", color=ft.colors.RED_700),
+                    bgcolor=ft.colors.RED_100
+                )
+                page.overlay.append(snackbar)
+                page.update()
+                snackbar.open = True
+                snackbar.update()
+            except Exception as ex:
+                print(f"Error saving: {ex}")
+                snackbar = ft.SnackBar(
+                    content=ft.Text(f"خطأ: {ex}", color=ft.colors.RED_700),
+                    bgcolor=ft.colors.RED_100
+                )
+                page.overlay.append(snackbar)
+                page.update()
+                snackbar.open = True
+                snackbar.update()
+        elif camera_manager.stop_camera_event.is_set():
+            print("Error: Camera stopped.")
+            snackbar = ft.SnackBar(
+                content=ft.Text("لا يمكن الالتقاط، الكاميرا متوقفة.", color=ft.colors.AMBER_700),
+                bgcolor=ft.colors.AMBER_100
+            )
+            page.overlay.append(snackbar)
+            page.update()
+            snackbar.open = True
+            snackbar.update()
+        else:
+            print("Error: No frame available.")
+            snackbar = ft.SnackBar(
+                content=ft.Text("لا يوجد إطار من الكاميرا للالتقاط.", color=ft.colors.AMBER_700),
+                bgcolor=ft.colors.AMBER_100
+            )
+            page.overlay.append(snackbar)
+            page.update()
+            snackbar.open = True
+            snackbar.update()
+
+
+    
+
+    show_qr_btn = ft.ElevatedButton("عرض QR", icon=ft.icons.QR_CODE_2,
+                                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)), bgcolor="#B58B18",
+                                    color=ft.colors.WHITE, height=40, on_click=show_qr_click)
+
+    # Create capture button
+    capture_button = ft.ElevatedButton(
+        "التقاط",
+        icon=ft.icons.CAMERA_ALT,
+        autofocus=True,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+        bgcolor="#6FA03C",
+        color=ft.colors.WHITE,
+        height=45,
+        on_click=capture_click
+    )
+    
+    # Start camera
+    camera_manager.start_camera()
+    
+    # Set cleanup handler
+    page.on_disconnect = camera_manager.cleanup_camera
+    
     # Faculty dropdown
     faculty_field = ft.Dropdown(
         label="الكلية",
@@ -185,24 +377,125 @@ def create_add_student_view(page: ft.Page):
         print("Save button clicked!")
         
         # Validation
-        if not all(k in form.attributes for k in ["name", "faculty_id", "is_male", "course_id", "location"]):
-            page.snack_bar = ft.SnackBar(ft.Text("يرجى إدخال جميع البيانات المطلوبة"))
-            page.snack_bar.open = True
+        required_fields = ["name", "faculty_id", "is_male", "course_id", "location", "photo_path"]
+        missing_fields = [field for field in required_fields if field not in form.attributes]
+        
+        if missing_fields:
+            snackbar = ft.SnackBar(
+                content=ft.Text(f"يرجى إدخال جميع البيانات المطلوبة: {', '.join(missing_fields)}"),
+                bgcolor=ft.colors.RED_100
+            )
+            page.overlay.append(snackbar)
             page.update()
+            snackbar.open = True
+            snackbar.update()
             return
             
         # Create student
         student = create_student_from_dict(form.attributes)
         
         if student:
-            page.snack_bar = ft.SnackBar(ft.Text("تم إضافة الطالب بنجاح"))
-            page.snack_bar.open = True
-            page.update()
-            go_back(None)  # Return to manage students page
+            try:
+                # Rename the photo file to use the student's QR code
+                if "photo_path" in form.attributes:
+                    old_path = form.attributes["photo_path"]
+                    new_filename = f"{student.qr_code}.jpg"
+                    new_path = os.path.join(os.path.dirname(old_path), new_filename)
+                    
+                    # Rename the file
+                    os.rename(old_path, new_path)
+                    
+                    # Update the student's photo_path
+                    with next(get_session()) as session:
+                        student.photo_path = new_path
+                        session.add(student)
+                        session.commit()
+                        
+                        # Store necessary data for QR code
+                        qr_data = {
+                            'qr_code': student.qr_code,
+                            'name': student.name,
+                            'national_id': student.national_id
+                        }
+                        
+                        def show_qr_click(e):
+                            try:
+                                buf = generate_qr_code(qr_data['qr_code'])
+                                data = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+                                img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+                                if img is None:
+                                    print("Failed to decode QR image")
+                                    return
+
+                                # Convert BGR to RGB for PyQt
+                                img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                                threading.Thread(
+                                    target=show_qr_window,
+                                    args=(img_rgb, qr_data['name'], qr_data['national_id']),
+                                    daemon=True
+                                ).start()
+                            except Exception as ex:
+                                print(f"Error showing QR: {ex}")
+
+                        # Create QR button
+                        qr_button = ft.ElevatedButton(
+                            "عرض QR",
+                            icon=ft.icons.QR_CODE_2,
+                            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                            bgcolor="#B58B18",
+                            color=ft.colors.WHITE,
+                            height=45,
+                            on_click=show_qr_click
+                        )
+
+                        # Create success message with QR button
+                        success_content = ft.Column([
+                            ft.Text("تم إضافة الطالب بنجاح", size=16, weight=ft.FontWeight.BOLD),
+                            qr_button
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+                        # Create and show snackbar
+                        snackbar = ft.SnackBar(
+                            content=success_content,
+                            bgcolor=ft.colors.GREEN_100,
+                            duration=10000  # Show for 10 seconds to give time to click QR button
+                        )
+                        page.overlay.append(snackbar)
+                        page.update()
+                        snackbar.open = True
+                        snackbar.update()
+                        print("Student added successfully")
+                        
+            except Exception as ex:
+                print(f"Error updating photo path: {ex}")
+                snackbar = ft.SnackBar(
+                    content=ft.Text(f"خطأ في تحديث مسار الصورة: {ex}", color=ft.colors.RED_700),
+                    bgcolor=ft.colors.RED_100
+                )
+                page.overlay.append(snackbar)
+                page.update()
+                snackbar.open = True
+                snackbar.update()
         else:
-            page.snack_bar = ft.SnackBar(ft.Text("حدث خطأ أثناء إضافة الطالب"))
-            page.snack_bar.open = True
+            snackbar = ft.SnackBar(
+                content=ft.Text("حدث خطأ أثناء إضافة الطالب", color=ft.colors.RED_700),
+                bgcolor=ft.colors.RED_100
+            )
+            page.overlay.append(snackbar)
             page.update()
+            snackbar.open = True
+            snackbar.update()
+
+    # Add back button for after QR viewing
+    back_button = ft.ElevatedButton(
+        text="العودة",
+        icon=ft.icons.ARROW_BACK,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+        bgcolor="#5C544A",
+        color=ft.colors.WHITE,
+        height=45,
+        on_click=go_back
+    )
 
     save_button = ft.ElevatedButton(
         text="حفظ",
@@ -230,6 +523,8 @@ def create_add_student_view(page: ft.Page):
                     national_id_field,
                     address_field,
                     course_field,  # Added course field
+                    camera_container,  # Add camera container
+                    capture_button    # Add capture button
                 ]
             ),
             # Right Column
@@ -299,3 +594,5 @@ def create_add_student_view(page: ft.Page):
             )
         ]
     )
+
+
