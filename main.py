@@ -106,6 +106,7 @@ from views.mark_attendance_departure_view import (
     create_attendance_mark_view,
     create_departure_mark_view
 )
+from views.add_student_barcode_view import create_add_student_barcode_view
 
 # Import reusable components
 try:
@@ -198,6 +199,7 @@ def main(page: ft.Page):
             "/main_screen": create_main_screen_view,
             "/add_student": create_add_student_view,
             "/search_qr_student": create_qr_search_student_view,
+            "/add_student_barcode": create_add_student_barcode_view,
             "/edit_course_data": create_edit_course_data_view,
             "/setup": create_setup_view,
         }

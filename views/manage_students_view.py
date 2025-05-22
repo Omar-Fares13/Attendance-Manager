@@ -6,7 +6,7 @@ from utils.assets import (ft_asset, ICON_ADD_STUDENT, ICON_SEARCH_STUDENT)
 from utils.input_controler import InputSequenceMonitor
 from views.mark_attendance_departure_view import attempt_system_verification
 # --- Reusable Card Function ---
-def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: str, action_data: str):
+def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: str, action_data: str, text_size: int = 16):
     # ... (Styling constants remain the same) ...
     CARD_BGCOLOR = ft.colors.with_opacity(0.98, ft.Colors.WHITE)
     TEXT_COLOR = ft.Colors.WHITE
@@ -20,11 +20,12 @@ def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
         print(f"Manage Students card clicked: {action}")
 
         # --- NAVIGATION LOGIC ---
-        if action == "search_student": # Check if the search card was clicked
-            page.go("/search_student") # <<< Navigate to the new search view route
-        # Add elif for "add_student" later
+        if action == "search_student":
+            page.go("/search_student")
         elif action == "add_student":
             page.go("/add_student")
+        elif action == "add_student_barcode":
+            page.go("/add_student_barcode")
         else:
             # Default placeholder action
             page.show_snack_bar(ft.SnackBar(ft.Text(f"Action: {action} (Not Implemented Yet)"), open=True))
@@ -46,7 +47,7 @@ def create_action_card(page: ft.Page, icon_src: str, text: str, button_bgcolor: 
                 ft.Container(
                     height=50, bgcolor=button_bgcolor, border_radius=BUTTON_BORDER_RADIUS,
                     padding=ft.padding.symmetric(horizontal=10), alignment=ft.alignment.center,
-                    content=ft.Text(text, color=TEXT_COLOR, weight=ft.FontWeight.W_600, size=16)
+                    content=ft.Text(text, color=TEXT_COLOR, weight=ft.FontWeight.W_600, size=text_size)
                 )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0,
@@ -66,7 +67,12 @@ def create_manage_students_view(page: ft.Page):
     
     sequence_monitor.register_observer(process_special_sequence)
     
-    page.on_keyboard_event = sequence_monitor.handle_key_event
+    # Only set keyboard event handler if we're not going to barcode view
+    def handle_key_event(e):
+        if page.route != "/add_student_barcode":
+            sequence_monitor.handle_key_event(e)
+    
+    page.on_keyboard_event = handle_key_event
 
     # ... (Back button and Title remain the same) ...
     def go_back(e):
@@ -77,12 +83,13 @@ def create_manage_students_view(page: ft.Page):
     # --- Card Data ---
     # Ensure 'action' for Search card is 'search_student'
     card_data = [
-        {"icon": ICON_ADD_STUDENT,     "text": "اضافة طالب جديد", "color": "#6FA03C", "action": "add_student"}, # Placeholder action
+        {"icon": ICON_ADD_STUDENT,     "text": "اضافة طالب جديد بالباركود", "color": "#6FA03C", "action": "add_student_barcode", "text_size": 14}, # Changed action and added text_size
+        {"icon": ICON_ADD_STUDENT,     "text": "اضافة طالب جديد", "color": "#6FA03C", "action": "add_student"},
         {"icon": ICON_SEARCH_STUDENT,  "text": "بحث",             "color": "#B58B18", "action": "search_student"}, # <<< Action triggers navigation
     ]
 
     # ... (Rest of the view creation remains the same) ...
-    action_items = [ create_action_card(page, item["icon"], item["text"], item["color"], item["action"]) for item in card_data ]
+    action_items = [ create_action_card(page, item["icon"], item["text"], item["color"], item["action"], item.get("text_size", 16)) for item in card_data ]
     cards_row = ft.Container(
         padding=ft.padding.symmetric(horizontal=30, vertical=20), alignment = ft.alignment.center,
         content=ft.Row( controls=action_items, spacing=30, run_spacing=30, alignment=ft.MainAxisAlignment.CENTER )

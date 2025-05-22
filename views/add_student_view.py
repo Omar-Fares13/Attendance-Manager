@@ -5,7 +5,7 @@ from utils.assets import ft_asset
 from logic.students import create_student_from_dict
 from logic.faculties import get_all_faculties
 from logic.course import get_all_courses
-from utils.camera_utils import CameraManager, create_camera_view
+from utils.camera_utils import CameraManager
 from utils.input_controler import InputSequenceMonitor
 from views.mark_attendance_departure_view import attempt_system_verification
 import uuid
